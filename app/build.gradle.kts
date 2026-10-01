@@ -6,6 +6,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val keystorePath: String? = System.getenv("KEYSTORE_PATH")
+val xnaiBaseUrl = providers.environmentVariable("XNAI_BASE_URL").orNull?.trim().orEmpty()
+
 android {
     namespace = "com.xnvalabs.smarteyex"
     compileSdk = 36
@@ -18,8 +21,6 @@ android {
         versionName = "0.3.1"
     }
 
-    val keystorePath: String? = System.getenv("KEYSTORE_PATH")
-    val xnaiBaseUrl = providers.environmentVariable("XNAI_BASE_URL").orNull?.trim().orEmpty()
     val xnaiBaseUrlQuoted = "\"" + xnaiBaseUrl.replace("\"", "\\\"") + "\""
 
     signingConfigs {
@@ -72,16 +73,15 @@ kotlin {
     }
 }
 
-gradle.taskGraph.whenReady { graph ->
-    val releaseRequested = graph.allTasks.any { task ->
-        task.name.contains("Release", ignoreCase = true) && task.project == project
-    }
-    if (releaseRequested) {
-        require(!keystorePath.isNullOrBlank()) { "KEYSTORE_PATH wajib diisi untuk release production yang ter-sign." }
-        require(!System.getenv("KEYSTORE_PASSWORD").isNullOrBlank()) { "KEYSTORE_PASSWORD wajib diisi untuk release." }
-        require(!System.getenv("KEY_ALIAS").isNullOrBlank()) { "KEY_ALIAS wajib diisi untuk release." }
-        require(!System.getenv("KEY_PASSWORD").isNullOrBlank()) { "KEY_PASSWORD wajib diisi untuk release." }
-        require(xnaiBaseUrl.startsWith("https://")) { "XNAI_BASE_URL wajib diisi dengan URL HTTPS untuk release." }
+tasks.configureEach {
+    if (name.contains("Release", ignoreCase = true)) {
+        doFirst {
+            require(!keystorePath.isNullOrBlank()) { "KEYSTORE_PATH wajib diisi untuk release production yang ter-sign." }
+            require(!System.getenv("KEYSTORE_PASSWORD").isNullOrBlank()) { "KEYSTORE_PASSWORD wajib diisi untuk release." }
+            require(!System.getenv("KEY_ALIAS").isNullOrBlank()) { "KEY_ALIAS wajib diisi untuk release." }
+            require(!System.getenv("KEY_PASSWORD").isNullOrBlank()) { "KEY_PASSWORD wajib diisi untuk release." }
+            require(xnaiBaseUrl.startsWith("https://")) { "XNAI_BASE_URL wajib diisi dengan URL HTTPS untuk release." }
+        }
     }
 }
 
