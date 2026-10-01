@@ -89,10 +89,10 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
     implementation(composeBom)
 
-    implementation("androidx.core:core-ktx:1.19.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.activity:activity-compose:1.12.4")
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
+    implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
@@ -104,6 +104,26 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraX")
     implementation("androidx.camera:camera-lifecycle:$cameraX")
     implementation("androidx.camera:camera-view:$cameraX")
+
+    // Keep the AndroidX graph on the API 36-compatible line.
+    // Some newer transitive releases require API 37 / AGP 9.1+.
+    constraints {
+        implementation("androidx.core:core:1.17.0") {
+            version { strictly("1.17.0") }
+        }
+        implementation("androidx.core:core-ktx:1.17.0") {
+            version { strictly("1.17.0") }
+        }
+        implementation("androidx.activity:activity:1.11.0") {
+            version { strictly("1.11.0") }
+        }
+        implementation("androidx.activity:activity-compose:1.11.0") {
+            version { strictly("1.11.0") }
+        }
+        implementation("androidx.activity:activity-ktx:1.11.0") {
+            version { strictly("1.11.0") }
+        }
+    }
 
     testImplementation("junit:junit:4.13.2")
 
