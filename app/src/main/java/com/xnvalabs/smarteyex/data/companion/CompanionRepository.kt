@@ -89,6 +89,7 @@ object CompanionRepository {
     private fun persist(synchronous: Boolean = false) {
         if (!initialized) return
         val p = profile.value
+        val e = emotion.value
         val profileJson = JSONObject().apply {
             put("mode", p.mode.name); put("warmth", p.warmth); put("proactivity", p.proactivity); put("verbosity", p.verbosity); put("humor", p.humor); put("expression", p.emotionalExpression); put("boundaryStrength", p.boundaryStrength)
         }.toString()

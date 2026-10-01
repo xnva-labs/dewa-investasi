@@ -88,19 +88,13 @@ fun PrivacySettingsScreen(onBack: () -> Unit, onSetPin: () -> Unit, onOpenPrivac
             label = "Notification Content",
             description = "Izinkan SmartEyeX membaca isi notifikasi untuk Communication Assistant.",
             checked = settings.notificationContentEnabled,
-            onToggle = { enabled ->
-                PrivacyRepository.setNotificationContentEnabled(enabled)
-                if (!enabled) NotificationRepository.clear()
-            },
+            onToggle = PrivacyRepository::setNotificationContentEnabled,
         ),
         ToggleRow(
             label = "Voice Personalization",
             description = "Simpan statistik prosodi terbatas agar gaya bicara XNAI dapat menyesuaikan tempo dan intonasi. Audio mentah tidak disimpan oleh fitur ini.",
             checked = settings.voicePersonalizationEnabled,
-            onToggle = { enabled ->
-                PrivacyRepository.setVoicePersonalizationEnabled(enabled)
-                if (!enabled) VoiceProfileRepository.clear()
-            },
+            onToggle = PrivacyRepository::setVoicePersonalizationEnabled,
         ),
         ToggleRow(
             label = "Face Recognition",
