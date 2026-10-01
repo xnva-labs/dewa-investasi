@@ -39,6 +39,7 @@ object ReminderRepository {
 
         if (entriesReady && nextIdReady) legacy.edit().clear().apply()
         initialized = true
+        rescheduleAll()
     }
 
     fun add(title: String, hour: Int, minute: Int): Boolean {
@@ -46,9 +47,10 @@ object ReminderRepository {
         if (title.isBlank() || hour !in 0..23 || minute !in 0..59) return false
         val id = nextId()
         val entry = ReminderEntry(id, title.trim().take(200), hour, minute)
+        if (!schedule(entry)) return false
         persist(reminders.value + entry)
         SecureStorage.putInt(KEY_NEXT_ID, id + 1)
-        return schedule(entry)
+        return true
     }
 
     fun clearAll() {

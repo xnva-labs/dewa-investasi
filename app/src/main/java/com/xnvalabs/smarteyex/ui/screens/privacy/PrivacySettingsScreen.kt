@@ -22,17 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xnvalabs.smarteyex.data.auth.AuthRepository
-import com.xnvalabs.smarteyex.data.call.CallRepository
-import com.xnvalabs.smarteyex.data.education.EducationRepository
-import com.xnvalabs.smarteyex.data.enterprise.EnterpriseRepository
-import com.xnvalabs.smarteyex.data.emergency.EmergencyRepository
-import com.xnvalabs.smarteyex.data.memory.MemoryRepository
-import com.xnvalabs.smarteyex.data.notifications.NotificationRepository
-import com.xnvalabs.smarteyex.data.reminder.ReminderRepository
 import com.xnvalabs.smarteyex.data.privacy.PrivacyRepository
-import com.xnvalabs.smarteyex.data.companion.CompanionRepository
-import com.xnvalabs.smarteyex.data.intelligence.UserModelRepository
-import com.xnvalabs.smarteyex.data.voice.VoiceProfileRepository
 import com.xnvalabs.smarteyex.ui.theme.AccentOrange
 import com.xnvalabs.smarteyex.ui.theme.LightBgWarm
 import com.xnvalabs.smarteyex.ui.theme.LightSurface
@@ -227,18 +217,7 @@ fun PrivacySettingsScreen(onBack: () -> Unit, onSetPin: () -> Unit, onOpenPrivac
                     .fillMaxWidth()
                     .background(LightSurface, RoundedCornerShape(14.dp))
                     .clickable {
-                        PrivacyRepository.clearAllData(onClearMemory = {
-                            MemoryRepository.deleteAll()
-                            ReminderRepository.clearAll()
-                            CallRepository.clearAll()
-                            EmergencyRepository.clear()
-                            EducationRepository.clearAll()
-                            EnterpriseRepository.clearAll()
-                            NotificationRepository.clear()
-                            UserModelRepository.clear()
-                            CompanionRepository.clearPersonalization()
-                            VoiceProfileRepository.clear()
-                        })
+                        PrivacyRepository.clearAllData()
                     }
                     .padding(16.dp),
             ) {

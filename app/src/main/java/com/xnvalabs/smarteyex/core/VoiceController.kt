@@ -33,6 +33,10 @@ class VoiceController(context: Context) : RecognitionListener, TextToSpeech.OnIn
     }
 
     fun startListening(onResult: (String) -> Unit, onError: (String) -> Unit) {
+        if (!PrivacyRepository.settings.value.microphoneEnabled) {
+            onError("Microphone OFF — aktifkan di Privacy Control.")
+            return
+        }
         val speech = recognizer
         if (speech == null) {
             onError("Speech Recognition tidak tersedia di perangkat ini.")
@@ -50,7 +54,11 @@ class VoiceController(context: Context) : RecognitionListener, TextToSpeech.OnIn
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
         }
         runCatching { speech.startListening(intent) }
-            .onFailure { onError("Voice input gagal dimulai.") }
+            .onFailure {
+                resultCallback = null
+                errorCallback = null
+                onError("Voice input gagal dimulai.")
+            }
     }
 
     fun stopListening() {

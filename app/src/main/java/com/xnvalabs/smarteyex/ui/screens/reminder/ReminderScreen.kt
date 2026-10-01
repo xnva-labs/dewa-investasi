@@ -74,6 +74,7 @@ fun ReminderScreen(onBack: () -> Unit) {
     var titleDraft by remember { mutableStateOf("") }
     var pickedHour by remember { mutableStateOf<Int?>(null) }
     var pickedMinute by remember { mutableStateOf<Int?>(null) }
+    var addError by remember { mutableStateOf<String?>(null) }
 
     var hasExactAlarm by remember { mutableStateOf(canScheduleExact(context)) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -152,6 +153,10 @@ fun ReminderScreen(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                addError?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(it, fontSize = 12.sp, color = AccentOrange)
+                }
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -182,10 +187,15 @@ fun ReminderScreen(onBack: () -> Unit) {
                             val h = pickedHour
                             val m = pickedMinute
                             if (titleDraft.isNotBlank() && h != null && m != null) {
-                                ReminderRepository.add(titleDraft.trim(), h, m)
-                                titleDraft = ""
-                                pickedHour = null
-                                pickedMinute = null
+                                val added = ReminderRepository.add(titleDraft.trim(), h, m)
+                                if (added) {
+                                    addError = null
+                                    titleDraft = ""
+                                    pickedHour = null
+                                    pickedMinute = null
+                                } else {
+                                    addError = "Reminder gagal dijadwalkan. Coba lagi atau cek izin alarm presisi."
+                                }
                             }
                         },
                     )

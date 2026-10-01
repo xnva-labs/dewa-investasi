@@ -226,7 +226,7 @@ private fun scribblePath(svgPath: String, scaleX: Float, scaleY: Float): Path {
 
     val path = Path()
     path.moveTo(nums[0] * scaleX, nums[1] * scaleY)
-    path.quadraticBezierTo(
+    path.quadraticTo(
         nums[2] * scaleX, nums[3] * scaleY,
         nums[4] * scaleX, nums[5] * scaleY,
     )
@@ -234,7 +234,7 @@ private fun scribblePath(svgPath: String, scaleX: Float, scaleY: Float): Path {
     // point — this is what SVG's T command does implicitly.
     val reflectedCx = nums[4] * 2 - nums[2]
     val reflectedCy = nums[5] * 2 - nums[3]
-    path.quadraticBezierTo(
+    path.quadraticTo(
         reflectedCx * scaleX, reflectedCy * scaleY,
         nums[6] * scaleX, nums[7] * scaleY,
     )

@@ -89,8 +89,6 @@ object XnaiRepository {
         }.take(MAX_CONTEXT_CHARS)
     }
 
-    private fun normalize(url: String): String = url.trim().removeSuffix("/")
-
     private const val MAX_MESSAGE_CHARS = 4000
     private const val MAX_REPLY_CHARS = 12000
     private const val MAX_CONTEXT_CHARS = 6000

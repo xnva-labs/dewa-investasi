@@ -35,6 +35,28 @@ class CompanionLogicTest {
     @Test fun emotionDecays() {
         val old = EmotionalSnapshot(EmotionalState.EXCITEMENT, 1f, 1f, 1L)
         val decayed = EmotionEngine.decay(old, old.updatedAt + 15 * 60 * 1000L)
-        assertTrue(decayed.intensity < old.intensity)
+        assertEquals(0.5f, decayed.intensity, 0.01f)
+        assertEquals(0.5f, decayed.confidence, 0.01f)
+    }
+
+    @Test fun negatedEmotionDoesNotCreatePositiveState() {
+        val snapshot = EmotionEngine.inferFromText("saya tidak bahagia hari ini")
+        assertEquals(EmotionalState.CALM, snapshot.state)
+        assertTrue(snapshot.intensity <= 0.1f)
+    }
+
+    @Test fun punctuationAndMultiWordNegationAreRespected() {
+        assertEquals(EmotionalState.CALM, EmotionEngine.inferFromText("saya nggak bahagia, kok").state)
+        assertEquals(EmotionalState.CALM, EmotionEngine.inferFromText("saya sama sekali tidak senang").state)
+    }
+
+    @Test fun mergeKeepsStateValuesBounded() {
+        val merged = EmotionEngine.merge(
+            EmotionalSnapshot(EmotionalState.JOY, 8f, 9f, 1L),
+            EmotionalSnapshot(EmotionalState.EXCITEMENT, 7f, 6f, 1L),
+            now = 1L,
+        )
+        assertTrue(merged.intensity in 0f..1f)
+        assertTrue(merged.confidence in 0f..1f)
     }
 }

@@ -47,9 +47,9 @@ object AuthRepository {
     }
 
     fun clearPin() {
-        SecureStorage.remove(KEY_PIN_HASH)
-        SecureStorage.remove(KEY_PIN_SALT)
-        SecureStorage.remove("auth.legacy.sha256")
+        SecureStorage.removeSync(KEY_PIN_HASH)
+        SecureStorage.removeSync(KEY_PIN_SALT)
+        SecureStorage.removeSync("auth.legacy.sha256")
         failedAttempts = 0
         lockedUntil = 0L
         isUnlocked.value = true

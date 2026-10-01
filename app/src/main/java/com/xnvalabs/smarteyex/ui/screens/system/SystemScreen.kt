@@ -150,7 +150,7 @@ fun SystemScreen(
                     val control = branchControlPoint(ringCenter, ringRadius, angle, i)
                     val path = Path().apply {
                         moveTo(ringCenter.x, ringCenter.y)
-                        quadraticBezierTo(control.x, control.y, nodePos.x, nodePos.y)
+                        quadraticTo(control.x, control.y, nodePos.x, nodePos.y)
                     }
                     val active = selectedId == node.id
                     drawPath(

@@ -40,7 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,6 +95,7 @@ fun VisionScreen(onBack: () -> Unit) {
 
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    var disposed by remember { mutableStateOf(false) }
     var resultText by remember { mutableStateOf<String?>(null) }
     var isAnalyzing by remember { mutableStateOf(false) }
 
@@ -109,6 +110,7 @@ fun VisionScreen(onBack: () -> Unit) {
 
     DisposableEffect(Unit) {
         onDispose {
+            disposed = true
             cameraProvider?.unbindAll()
             CaptureLedController.setActive(false)
         }
@@ -164,7 +166,8 @@ fun VisionScreen(onBack: () -> Unit) {
                                 val previewView = PreviewView(ctx)
                                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                                 cameraProviderFuture.addListener({
-                                    val provider = cameraProviderFuture.get()
+                                    if (disposed || !cameraEnabled || !hasPermission) return@addListener
+                                    val provider = runCatching { cameraProviderFuture.get() }.getOrNull() ?: return@addListener
                                     cameraProvider = provider
                                     val preview = Preview.Builder().build().also {
                                         it.setSurfaceProvider(previewView.surfaceProvider)
@@ -182,7 +185,7 @@ fun VisionScreen(onBack: () -> Unit) {
                                             capture,
                                         )
                                         CaptureLedController.setActive(true)
-                                    }
+                                    }.onFailure { CaptureLedController.setActive(false) }
                                 }, ContextCompat.getMainExecutor(ctx))
                                 previewView
                             },
@@ -219,7 +222,7 @@ fun VisionScreen(onBack: () -> Unit) {
 
                                         override fun onError(exception: ImageCaptureException) {
                                             isAnalyzing = false
-                                            resultText = "Gagal mengambil gambar: ${exception.message}"
+                                            resultText = "Gagal mengambil gambar. Coba lagi."
                                         }
                                     },
                                 )

@@ -59,7 +59,7 @@ fun EagleEye(
         if (showBrow) {
             val browPath = Path().apply {
                 moveTo(center.x - irisRadius * 1.15f, center.y - irisRadius * 0.55f)
-                quadraticBezierTo(
+                quadraticTo(
                     center.x, center.y - irisRadius * 1.55f,
                     center.x + irisRadius * 1.15f, center.y - irisRadius * 0.55f,
                 )

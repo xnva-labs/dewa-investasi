@@ -36,7 +36,7 @@ object VoiceProfileRepository {
 
     fun clear() {
         profile.value = VoiceProfile()
-        SecureStorage.remove(KEY)
+        SecureStorage.removeSync(KEY)
     }
 
     private fun persist() {

@@ -4,10 +4,14 @@ import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import com.xnvalabs.smarteyex.core.SecureStorage
 import com.xnvalabs.smarteyex.data.companion.CompanionRepository
-import com.xnvalabs.smarteyex.data.intelligence.UserModelRepository
 import com.xnvalabs.smarteyex.data.memory.MemoryRepository
 import com.xnvalabs.smarteyex.data.notifications.NotificationRepository
 import com.xnvalabs.smarteyex.data.voice.VoiceProfileRepository
+import com.xnvalabs.smarteyex.data.reminder.ReminderRepository
+import com.xnvalabs.smarteyex.data.call.CallRepository
+import com.xnvalabs.smarteyex.data.emergency.EmergencyRepository
+import com.xnvalabs.smarteyex.data.education.EducationRepository
+import com.xnvalabs.smarteyex.data.enterprise.EnterpriseRepository
 
 /** Single source of truth for sensitive-feature consent. */
 object PrivacyRepository {
@@ -38,7 +42,10 @@ object PrivacyRepository {
             notificationContentEnabled = SecureStorage.getBoolean(KEY_NOTIFICATIONS, false),
             voicePersonalizationEnabled = SecureStorage.getBoolean(KEY_VOICE, false),
         )
-        legacy.edit().clear().apply()
+        val secureMigrationComplete = listOf(
+            KEY_CAMERA, KEY_MIC, KEY_MEMORY, KEY_CLOUD, KEY_FACE,
+        ).all { SecureStorage.getString(it) != null }
+        if (secureMigrationComplete) legacy.edit().clear().apply()
         initialized = true
     }
 
@@ -48,8 +55,7 @@ object PrivacyRepository {
         update { it.copy(memoryEnabled = enabled) }
         if (!enabled) {
             MemoryRepository.deleteAll()
-            UserModelRepository.clear()
-            CompanionRepository.clearPersonalization()
+            CompanionRepository.clearPersonalizationSynchronously()
         }
     }
     fun setCloudProcessingEnabled(enabled: Boolean) = update { it.copy(cloudProcessingEnabled = enabled) }
@@ -63,11 +69,14 @@ object PrivacyRepository {
         if (!enabled) VoiceProfileRepository.clear()
     }
 
-    fun clearAllData(onClearMemory: () -> Unit = {}) {
-        onClearMemory()
+    fun clearAllData() {
         MemoryRepository.deleteAll()
-        UserModelRepository.clear()
-        CompanionRepository.clearPersonalization()
+        ReminderRepository.clearAll()
+        CallRepository.clearAll()
+        EmergencyRepository.clear()
+        EducationRepository.clearAll()
+        EnterpriseRepository.clearAll()
+        CompanionRepository.clearPersonalizationSynchronously()
         VoiceProfileRepository.clear()
         NotificationRepository.clear()
         update { PrivacySettings.DEFAULT }
@@ -82,12 +91,12 @@ object PrivacyRepository {
         check(initialized) { "PrivacyRepository.init(context) must be called first" }
         val next = transform(settings.value)
         settings.value = next
-        SecureStorage.putBoolean(KEY_CAMERA, next.cameraEnabled)
-        SecureStorage.putBoolean(KEY_MIC, next.microphoneEnabled)
-        SecureStorage.putBoolean(KEY_MEMORY, next.memoryEnabled)
-        SecureStorage.putBoolean(KEY_CLOUD, next.cloudProcessingEnabled)
-        SecureStorage.putBoolean(KEY_FACE, next.faceRecognitionEnabled)
-        SecureStorage.putBoolean(KEY_NOTIFICATIONS, next.notificationContentEnabled)
-        SecureStorage.putBoolean(KEY_VOICE, next.voicePersonalizationEnabled)
+        SecureStorage.putBooleanSync(KEY_CAMERA, next.cameraEnabled)
+        SecureStorage.putBooleanSync(KEY_MIC, next.microphoneEnabled)
+        SecureStorage.putBooleanSync(KEY_MEMORY, next.memoryEnabled)
+        SecureStorage.putBooleanSync(KEY_CLOUD, next.cloudProcessingEnabled)
+        SecureStorage.putBooleanSync(KEY_FACE, next.faceRecognitionEnabled)
+        SecureStorage.putBooleanSync(KEY_NOTIFICATIONS, next.notificationContentEnabled)
+        SecureStorage.putBooleanSync(KEY_VOICE, next.voicePersonalizationEnabled)
     }
 }

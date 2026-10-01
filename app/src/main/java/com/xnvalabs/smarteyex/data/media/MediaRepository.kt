@@ -8,6 +8,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import androidx.compose.runtime.mutableStateOf
 import com.xnvalabs.smarteyex.service.SmartEyeXNotificationListener
+import com.xnvalabs.smarteyex.data.notifications.NotificationRepository
 
 /** Snapshot of the currently-controlled media session, if any. */
 data class MediaState(
@@ -49,6 +50,12 @@ object MediaRepository {
 
     /** Re-reads the active session list and binds to the first one, if any. Call whenever MediaScreen opens/resumes. */
     fun refresh(context: Context) {
+        if (!NotificationRepository.isAccessGranted(context)) {
+            controller?.unregisterCallback(callback)
+            controller = null
+            refreshFromController()
+            return
+        }
         val manager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
         val component = ComponentName(context, SmartEyeXNotificationListener::class.java)
         val sessions = runCatching { manager.getActiveSessions(component) }.getOrDefault(emptyList())

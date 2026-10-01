@@ -3,7 +3,7 @@
 Use this checklist before creating a public Play Store release.
 
 ## Build and signing
-- [ ] Run `./gradlew clean test lintDebug assembleDebug` in an Android SDK environment.
+- [ ] Run `gradle clean test lintDebug assembleDebug` in an Android SDK environment, or run the equivalent tasks from Android Studio.
 - [ ] Configure `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD` in CI.
 - [ ] Verify the release AAB is signed with the intended upload key.
 

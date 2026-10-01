@@ -64,6 +64,17 @@ object UserModelRepository {
         persist()
     }
 
+    fun clearSynchronously() {
+        preferences.value = emptyList()
+        interactionCount.value = 0L
+        if (!initialized) return
+        val json = JSONObject().apply {
+            put("interactions", 0L)
+            put("preferences", JSONArray())
+        }
+        SecureStorage.putStringSync(PREFS_KEY, json.toString())
+    }
+
     private fun persist() {
         if (!initialized) return
         val json = JSONObject().apply {

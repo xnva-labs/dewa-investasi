@@ -31,7 +31,9 @@ object NotificationRepository {
         val cleanMessage = msg.trim().take(2000)
         if (cleanApp.isBlank() || cleanMessage.isBlank()) return
         notifications.value = (listOf(RawNotification(cleanApp, cleanMessage, System.currentTimeMillis())) + notifications.value).take(MAX_KEPT)
-        if (replyAction?.remoteInputs?.isNotEmpty() == true) latestReplyTarget.value = ReplyTarget(cleanApp, replyAction)
+        latestReplyTarget.value = replyAction
+            ?.takeIf { it.remoteInputs?.isNotEmpty() == true }
+            ?.let { ReplyTarget(cleanApp, it) }
     }
 
     fun sendReply(context: Context, message: String): Result<Unit> {

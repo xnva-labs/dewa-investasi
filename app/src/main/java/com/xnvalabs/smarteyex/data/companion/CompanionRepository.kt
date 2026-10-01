@@ -63,8 +63,18 @@ object CompanionRepository {
 
     fun clearPersonalization() {
         UserModelRepository.clear()
+        profile.value = CompanionProfile()
+        currentMode.value = CompanionMode.FRIEND
         emotion.value = EmotionalSnapshot()
         persist()
+    }
+
+    fun clearPersonalizationSynchronously() {
+        UserModelRepository.clearSynchronously()
+        profile.value = CompanionProfile()
+        currentMode.value = CompanionMode.FRIEND
+        emotion.value = EmotionalSnapshot()
+        persist(synchronous = true)
     }
 
     private fun inferPreference(text: String) {
@@ -76,14 +86,20 @@ object CompanionRepository {
         }
     }
 
-    private fun persist() {
+    private fun persist(synchronous: Boolean = false) {
         if (!initialized) return
         val p = profile.value
-        SecureStorage.putString(KEY_PROFILE, JSONObject().apply {
-            put("mode", p.mode.name); put("warmth", p.warmth); put("proactivity", p.proactivity); put("verbosity", p.verbosity); put("humor", p.humor); put("expression", p.emotionalExpression)
-        }.toString())
-        val e = emotion.value
-        SecureStorage.putString(KEY_EMOTION, JSONObject().apply { put("state", e.state.name); put("intensity", e.intensity); put("confidence", e.confidence); put("updatedAt", e.updatedAt) }.toString())
+        val profileJson = JSONObject().apply {
+            put("mode", p.mode.name); put("warmth", p.warmth); put("proactivity", p.proactivity); put("verbosity", p.verbosity); put("humor", p.humor); put("expression", p.emotionalExpression); put("boundaryStrength", p.boundaryStrength)
+        }.toString()
+        val emotionJson = JSONObject().apply { put("state", e.state.name); put("intensity", e.intensity); put("confidence", e.confidence); put("updatedAt", e.updatedAt) }.toString()
+        if (synchronous) {
+            SecureStorage.putStringSync(KEY_PROFILE, profileJson)
+            SecureStorage.putStringSync(KEY_EMOTION, emotionJson)
+        } else {
+            SecureStorage.putString(KEY_PROFILE, profileJson)
+            SecureStorage.putString(KEY_EMOTION, emotionJson)
+        }
     }
 
     private fun load() {
@@ -91,7 +107,15 @@ object CompanionRepository {
             SecureStorage.getString(KEY_PROFILE)?.let { json ->
                 val o = JSONObject(json)
                 val mode = runCatching { CompanionMode.valueOf(o.optString("mode")) }.getOrDefault(CompanionMode.FRIEND)
-                profile.value = CompanionProfile(mode, o.optDouble("warmth", .7).toFloat(), o.optDouble("proactivity", .55).toFloat(), o.optDouble("verbosity", .35).toFloat(), o.optDouble("humor", .25).toFloat(), o.optDouble("expression", .7).toFloat())
+                profile.value = CompanionProfile(
+                    mode = mode,
+                    warmth = o.optDouble("warmth", .7).toFloat().coerceIn(0f, 1f),
+                    proactivity = o.optDouble("proactivity", .55).toFloat().coerceIn(0f, 1f),
+                    verbosity = o.optDouble("verbosity", .35).toFloat().coerceIn(0f, 1f),
+                    humor = o.optDouble("humor", .25).toFloat().coerceIn(0f, 1f),
+                    emotionalExpression = o.optDouble("expression", .7).toFloat().coerceIn(0f, 1f),
+                    boundaryStrength = o.optDouble("boundaryStrength", 1.0).toFloat().coerceIn(0f, 1f),
+                )
                 currentMode.value = mode
             }
             SecureStorage.getString(KEY_EMOTION)?.let { json ->

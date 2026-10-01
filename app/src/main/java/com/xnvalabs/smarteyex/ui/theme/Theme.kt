@@ -5,7 +5,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -65,8 +64,6 @@ fun SmartEyeXTheme(content: @Composable () -> Unit) {
     if (!view.isInEditMode) {
         val activity = view.context as? android.app.Activity
         activity?.window?.let { window ->
-            window.statusBarColor = LightBgWarm.toArgb()
-            window.navigationBarColor = LightBgWarm.toArgb()
             val controller = WindowCompat.getInsetsController(window, view)
             controller.isAppearanceLightStatusBars = true
             controller.isAppearanceLightNavigationBars = true

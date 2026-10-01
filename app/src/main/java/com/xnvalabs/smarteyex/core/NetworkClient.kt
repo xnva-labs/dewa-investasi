@@ -2,8 +2,6 @@ package com.xnvalabs.smarteyex.core
 
 import com.xnvalabs.smarteyex.BuildConfig
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
@@ -23,10 +21,10 @@ object NetworkClient {
         return runCatching {
             var lastResponse: Response? = null
             val attempts = if (requestId.isNullOrBlank()) 1 else MAX_ATTEMPTS
-            repeat(attempts) { attempt ->
+            for (attempt in 0 until attempts) {
                 val response = executeOnce(baseUrl, path, body, requestId)
                 lastResponse = response
-                if (response.code !in RETRYABLE_CODES || attempt == attempts - 1) return@repeat
+                if (response.code !in RETRYABLE_CODES || attempt == attempts - 1) break
                 Thread.sleep(RETRY_DELAYS_MS[attempt])
             }
             lastResponse ?: error("Tidak ada respons dari server.")
@@ -81,19 +79,17 @@ object NetworkClient {
 
     private fun readBounded(input: java.io.InputStream): String {
         input.use { stream ->
-            val builder = StringBuilder()
-            BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8)).use { reader ->
-                val buffer = CharArray(4096)
-                var total = 0
-                while (true) {
-                    val count = reader.read(buffer)
-                    if (count <= 0) break
-                    total += count
-                    if (total > MAX_RESPONSE_BYTES) error("Respons server terlalu besar.")
-                    builder.append(buffer, 0, count)
-                }
+            val output = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            var total = 0
+            while (true) {
+                val count = stream.read(buffer)
+                if (count <= 0) break
+                total += count
+                if (total > MAX_RESPONSE_BYTES) error("Respons server terlalu besar.")
+                output.write(buffer, 0, count)
             }
-            return builder.toString()
+            return output.toString(StandardCharsets.UTF_8.name())
         }
     }
 }

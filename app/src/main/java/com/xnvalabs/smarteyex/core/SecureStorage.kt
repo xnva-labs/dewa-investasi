@@ -79,6 +79,8 @@ object SecureStorage {
 
     fun putBoolean(key: String, value: Boolean): Boolean = putString(key, value.toString())
 
+    fun putBooleanSync(key: String, value: Boolean): Boolean = putStringSync(key, value.toString())
+
     fun getInt(key: String, default: Int = 0): Int =
         getString(key)?.toIntOrNull() ?: default
 

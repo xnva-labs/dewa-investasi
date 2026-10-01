@@ -113,6 +113,8 @@ private fun ThinkMode.colorC(): Color? = if (this == ThinkMode.SUPER) XnaiSuperC
 
 private data class ChatMessage(val text: String, val isUser: Boolean)
 
+private const val MAX_VISIBLE_MESSAGES = 100
+
 /**
  * XNAI Core Screen — native translation, first screen built under the
  * post-Profile design rule: dark is allowed, purple/navy is not. Base is
@@ -161,7 +163,7 @@ fun XNAICoreScreen(onBack: () -> Unit, onVoiceCommand: (VoiceCommand) -> Unit = 
             return
         }
         CompanionRepository.observeUserText(trimmed)
-        messages.value = messages.value + ChatMessage(trimmed, isUser = true)
+        messages.value = (messages.value + ChatMessage(trimmed, isUser = true)).takeLast(MAX_VISIBLE_MESSAGES)
         inputText = ""
         voiceError = null
         isTyping = true
@@ -175,7 +177,7 @@ fun XNAICoreScreen(onBack: () -> Unit, onVoiceCommand: (VoiceCommand) -> Unit = 
                 onFailure = { e -> e.message ?: "Gagal menghubungi XNAI backend." },
             )
             isTyping = false
-            messages.value = messages.value + ChatMessage(replyText, isUser = false)
+            messages.value = (messages.value + ChatMessage(replyText, isUser = false)).takeLast(MAX_VISIBLE_MESSAGES)
             voiceController.speak(replyText)
         }
     }
@@ -183,9 +185,11 @@ fun XNAICoreScreen(onBack: () -> Unit, onVoiceCommand: (VoiceCommand) -> Unit = 
     val micPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) {
             voiceError = "Izin microphone diperlukan untuk Voice XNAI."
+        } else if (!PrivacyRepository.settings.value.microphoneEnabled) {
+            voiceError = "Microphone OFF — aktifkan di Privacy Control."
         } else {
             isListening = true
-        voiceError = null
+            voiceError = null
             voiceController.startListening(
                 onResult = { spoken ->
                     isListening = false
@@ -242,7 +246,7 @@ fun XNAICoreScreen(onBack: () -> Unit, onVoiceCommand: (VoiceCommand) -> Unit = 
     }
 
     LaunchedEffect(messages.value.size, isTyping) {
-        if (messages.value.isNotEmpty()) listState.animateScrollToItem(messages.value.size)
+        if (messages.value.isNotEmpty()) listState.animateScrollToItem(messages.value.lastIndex)
     }
 
     DisposableEffect(voiceController) {
