@@ -27,7 +27,7 @@ object VoiceCommandRouter {
             t.startsWith("balas aja") || t.startsWith("balas pesan") -> VoiceCommand(VoiceIntent.REPLY_NOTIFICATION, t.substringAfter("balas aja", t.substringAfter("balas pesan", "")).trim(), requiresConfirmation = true)
             t.startsWith("ingatkan") || t.startsWith("ingatkan gue") || t.startsWith("ingatkan saya") -> VoiceCommand(VoiceIntent.CREATE_REMINDER, t.substringAfter("ingatkan").trim())
             t.contains("buka memori") || t.contains("lihat memori") -> VoiceCommand(VoiceIntent.OPEN_MEMORY)
-            t.contains("lihat") && t.contains("kamera") || t.contains("vision") -> VoiceCommand(VoiceIntent.OPEN_VISION)
+            (t.contains("lihat") && t.contains("kamera")) || t.contains("vision") -> VoiceCommand(VoiceIntent.OPEN_VISION)
             t.contains("terjemah") || t.contains("translate") -> VoiceCommand(VoiceIntent.OPEN_TRANSLATION)
             t.contains("navigasi") || t.contains("arah ke") -> VoiceCommand(VoiceIntent.OPEN_NAVIGATION, t.substringAfter("arah ke", "").trim())
             t.contains("privacy") || t.contains("privasi") -> VoiceCommand(VoiceIntent.OPEN_PRIVACY)
@@ -39,10 +39,10 @@ object VoiceCommandRouter {
     }
 
     fun canUseSensitiveIntent(intent: VoiceIntent): Boolean = when (intent) {
-        VoiceIntent.READ_NOTIFICATIONS -> PrivacyRepository.settings.value.notificationContentEnabled
+        VoiceIntent.READ_NOTIFICATIONS, VoiceIntent.REPLY_NOTIFICATION ->
+            PrivacyRepository.settings.value.notificationContentEnabled
         VoiceIntent.OPEN_VISION -> PrivacyRepository.settings.value.cameraEnabled
         VoiceIntent.OPEN_MEMORY -> PrivacyRepository.settings.value.memoryEnabled
-        VoiceIntent.READ_NOTIFICATIONS, VoiceIntent.REPLY_NOTIFICATION -> PrivacyRepository.settings.value.notificationContentEnabled
         VoiceIntent.START_EMERGENCY -> true
         else -> true
     }

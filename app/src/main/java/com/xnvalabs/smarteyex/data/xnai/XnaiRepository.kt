@@ -22,10 +22,6 @@ object XnaiRepository {
     var endpointUrl: String = BuildConfig.XNAI_BASE_URL.trim().removeSuffix("/")
         private set
 
-    fun configureEndpointForBuild(url: String) {
-        endpointUrl = normalize(url)
-    }
-
     suspend fun sendMessage(
         userText: String,
         history: List<XnaiMessage>,

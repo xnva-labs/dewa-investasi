@@ -24,12 +24,6 @@ object CompanionRepository {
         initialized = true
     }
 
-    fun setMode(mode: CompanionMode) {
-        currentMode.value = mode
-        profile.value = profile.value.copy(mode = mode)
-        persist()
-    }
-
     fun observeUserText(text: String) {
         if (text.isBlank()) return
         val inferred = EmotionEngine.inferFromText(text)

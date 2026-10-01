@@ -17,21 +17,13 @@ data class UserPreference(
     val updatedAt: Long,
 )
 
-data class UserGoal(
-    val title: String,
-    val progress: Float,
-    val updatedAt: Long,
-)
-
 object UserModelRepository {
     private const val PREFS_KEY = "intelligence.user_model.v1"
     private const val MAX_PREFERENCES = 100
-    private const val MAX_GOALS = 50
     private const val MAX_TEXT = 500
     private var initialized = false
 
     val preferences = mutableStateOf(emptyList<UserPreference>())
-    val goals = mutableStateOf(emptyList<UserGoal>())
     val interactionCount = mutableStateOf(0L)
 
     fun init(context: Context) {
@@ -58,26 +50,8 @@ object UserModelRepository {
         persist()
     }
 
-    fun setGoal(title: String, progress: Float = 0f) {
-        if (!initialized) return
-        val clean = title.trim().take(MAX_TEXT)
-        if (clean.isBlank()) return
-        goals.value = (goals.value.filterNot { it.title.equals(clean, ignoreCase = true) } + UserGoal(clean, progress.coerceIn(0f, 1f), System.currentTimeMillis())).takeLast(MAX_GOALS)
-        persist()
-    }
-
-    fun updateGoal(title: String, progress: Float) {
-        val clean = title.trim().take(MAX_TEXT)
-        goals.value = goals.value.map { if (it.title.equals(clean, true)) it.copy(progress = progress.coerceIn(0f, 1f), updatedAt = System.currentTimeMillis()) else it }
-        persist()
-    }
-
     fun contextSummary(): String = buildString {
         if (preferences.value.isNotEmpty()) append("Preferences: ").append(preferences.value.takeLast(20).joinToString("; ") { "${it.key}=${it.value}" })
-        if (goals.value.isNotEmpty()) {
-            if (isNotEmpty()) append(" | ")
-            append("Goals: ").append(goals.value.takeLast(10).joinToString("; ") { "${it.title}=${(it.progress * 100).toInt()}%" })
-        }
         if (interactionCount.value > 0L) {
             if (isNotEmpty()) append(" | ")
             append("Interactions: ").append(interactionCount.value)
@@ -86,7 +60,6 @@ object UserModelRepository {
 
     fun clear() {
         preferences.value = emptyList()
-        goals.value = emptyList()
         interactionCount.value = 0L
         persist()
     }
@@ -97,9 +70,6 @@ object UserModelRepository {
             put("interactions", interactionCount.value)
             put("preferences", JSONArray().apply {
                 preferences.value.forEach { p -> put(JSONObject().apply { put("key", p.key); put("value", p.value); put("confidence", p.confidence); put("updatedAt", p.updatedAt) }) }
-            })
-            put("goals", JSONArray().apply {
-                goals.value.forEach { g -> put(JSONObject().apply { put("title", g.title); put("progress", g.progress); put("updatedAt", g.updatedAt) }) }
             })
         }
         SecureStorage.putString(PREFS_KEY, json.toString())
@@ -119,14 +89,6 @@ object UserModelRepository {
                     if (key.isNotBlank() && value.isNotBlank()) add(UserPreference(key, value, p.optDouble("confidence", 0.5).toFloat().coerceIn(0f, 1f), p.optLong("updatedAt", 0L)))
                 }
             }.takeLast(MAX_PREFERENCES)
-            val goalArray = json.optJSONArray("goals")
-            goals.value = buildList {
-                if (goalArray != null) for (i in 0 until goalArray.length()) {
-                    val g = goalArray.optJSONObject(i) ?: continue
-                    val title = g.optString("title").take(MAX_TEXT)
-                    if (title.isNotBlank()) add(UserGoal(title, g.optDouble("progress", 0.0).toFloat().coerceIn(0f, 1f), g.optLong("updatedAt", 0L)))
-                }
-            }.takeLast(MAX_GOALS)
         }
     }
 }

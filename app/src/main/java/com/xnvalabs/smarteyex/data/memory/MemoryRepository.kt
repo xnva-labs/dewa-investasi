@@ -53,7 +53,6 @@ object MemoryRepository {
     fun getProfileValue(label: String): String? = entries.value.firstOrNull { it.type == MemoryType.PROFILE && it.title == label }?.content
 
     fun deleteEntry(id: String) = persist(entries.value.filterNot { it.id == id })
-    fun deleteByType(type: MemoryType) = persist(entries.value.filterNot { it.type == type })
     fun deleteAll() = persist(emptyList(), synchronous = true)
 
     private fun memoryAllowed(): Boolean {
