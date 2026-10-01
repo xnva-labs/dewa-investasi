@@ -14,13 +14,17 @@ This repository includes a repeatable static integrity scan at `scripts/producti
 - Voice-first interaction layer with local intent routing.
 - Companion modes and contextual companion profile.
 - Bounded synthetic emotional state for expressive behavior, without claiming consciousness.
-- Encrypted personal model for preferences, goals, and interaction count.
+- Encrypted personal model for preferences and interaction count; goal tracking is not currently wired into production flows.
 - Philosophy/science/mathematics/engineering/invention/teaching/research reasoning profiles.
 - Optional voice prosody personalization storing bounded statistics instead of raw audio.
 - Cloud context is gated by Memory consent.
 
 ## Important implementation boundary
 Android platform TTS can adapt pitch/rate, but it cannot by itself guarantee a 90% identity-level voice clone. A production voice-cloning provider or on-device voice model must be integrated behind a dedicated consented voice-synthesis service before making that claim.
+
+## Latest audit note
+- The current GitHub CI log confirms Kotlin compilation succeeded but one emotion inference unit test failed; do not treat the build as passing until CI is rerun.
+- Emotion inference currently uses a bounded keyword heuristic; it is not a validated emotion detector and does not reliably interpret negation, sarcasm, or context.
 
 ## Build verification
 The repository CI performs the authoritative Android `test`, `lint`, and build steps on a runner with Android/Gradle tooling. The local audit environment used during this preparation does not contain the Android SDK/Gradle distribution, so a successful local `assembleRelease` is not claimed here.

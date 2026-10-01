@@ -24,12 +24,15 @@ object EmotionEngine {
 
     fun inferFromText(text: String): EmotionalSnapshot {
         val normalized = text.lowercase()
+        // Explicit emotion words carry more evidence than conversational slang.
+        // This lets a sentence such as "gila keren, saya bahagia" resolve to JOY
+        // without treating every enthusiastic adjective as the user's core emotion.
         val scores = linkedMapOf(
-            EmotionalState.JOY to score(normalized, listOf("senang", "bahagia", "gembira", "berhasil", "mantap", "yes", "hore")),
-            EmotionalState.SADNESS to score(normalized, listOf("sedih", "kecewa", "gagal", "menangis", "hancur", "kehilangan")),
-            EmotionalState.FRUSTRATION to score(normalized, listOf("kesal", "marah", "error", "gagal", "pusing", "benci", "anjing")),
+            EmotionalState.JOY to score(normalized, listOf("senang", "bahagia", "gembira", "berhasil", "mantap", "yes", "hore"), explicit = listOf("senang", "bahagia", "gembira")),
+            EmotionalState.SADNESS to score(normalized, listOf("sedih", "kecewa", "gagal", "menangis", "hancur", "kehilangan"), explicit = listOf("sedih", "kecewa", "menangis")),
+            EmotionalState.FRUSTRATION to score(normalized, listOf("kesal", "marah", "error", "gagal", "pusing", "benci", "anjing"), explicit = listOf("kesal", "marah", "benci")),
             EmotionalState.EXCITEMENT to score(normalized, listOf("gila", "keren", "gas", "launch", "ide baru", "menarik banget")),
-            EmotionalState.CONCERN to score(normalized, listOf("takut", "khawatir", "bahaya", "bingung", "cemas", "darurat")),
+            EmotionalState.CONCERN to score(normalized, listOf("takut", "khawatir", "bahaya", "bingung", "cemas", "darurat"), explicit = listOf("takut", "khawatir", "cemas")),
             EmotionalState.CURIOSITY to score(normalized, listOf("kenapa", "bagaimana", "apakah", "mungkin", "penasaran", "jelaskan")),
         )
         val best = scores.maxByOrNull { it.value } ?: return EmotionalSnapshot()
@@ -55,9 +58,11 @@ object EmotionEngine {
         return snapshot.copy(intensity = (snapshot.intensity * factor).coerceIn(0f, 1f), confidence = snapshot.confidence * factor, updatedAt = now)
     }
 
-    private fun score(text: String, terms: List<String>): Float {
+    private fun score(text: String, terms: List<String>, explicit: List<String> = emptyList()): Float {
         if (terms.isEmpty()) return 0f
+        val explicitHit = explicit.any { text.contains(it) }
         val hits = terms.count { text.contains(it) }
-        return (hits.toFloat() / terms.size * 0.85f).coerceAtMost(1f)
+        val base = (hits.toFloat() / terms.size * 0.85f).coerceAtMost(1f)
+        return if (explicitHit) max(base, 0.8f) else base
     }
 }

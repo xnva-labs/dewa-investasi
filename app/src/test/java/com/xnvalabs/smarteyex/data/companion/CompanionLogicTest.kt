@@ -18,6 +18,18 @@ class CompanionLogicTest {
         val snapshot = EmotionEngine.inferFromText("gila keren banget saya bahagia")
         assertEquals(EmotionalState.JOY, snapshot.state)
         assertTrue(snapshot.intensity in 0f..1f)
+        assertTrue(snapshot.confidence in 0f..1f)
+    }
+
+    @Test fun explicitEmotionOutweighsPositiveSlang() {
+        val snapshot = EmotionEngine.inferFromText("gila keren banget saya bahagia")
+        assertEquals(EmotionalState.JOY, snapshot.state)
+    }
+
+    @Test fun neutralTextDoesNotInventStrongEmotion() {
+        val snapshot = EmotionEngine.inferFromText("saya sedang membaca buku")
+        assertEquals(EmotionalState.CALM, snapshot.state)
+        assertTrue(snapshot.intensity <= 0.1f)
     }
 
     @Test fun emotionDecays() {
