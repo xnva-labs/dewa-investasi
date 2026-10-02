@@ -3,6 +3,7 @@ package com.xnvalabs.smarteyex
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import androidx.compose.runtime.Composable
@@ -90,6 +91,13 @@ private fun SmartEyeXApp() {
     LaunchedEffect(isUnlocked) {
         if (!isUnlocked && currentScreen !in setOf(Screen.Loading, Screen.PinUnlock, Screen.PinSetup)) {
             currentScreen = Screen.PinUnlock
+        }
+    }
+
+    BackHandler(enabled = currentScreen !in setOf(Screen.Loading, Screen.PinUnlock, Screen.System)) {
+        currentScreen = when (currentScreen) {
+            Screen.PrivacyPolicy, Screen.PinSetup -> Screen.PrivacySettings
+            else -> Screen.System
         }
     }
 

@@ -42,16 +42,23 @@ object ReminderRepository {
         rescheduleAll()
     }
 
-    fun add(title: String, hour: Int, minute: Int): Boolean {
-        check(initialized) { "ReminderRepository.init(context) must be called first" }
-        if (title.isBlank() || hour !in 0..23 || minute !in 0..59) return false
+    fun add(title: String, hour: Int, minute: Int): Boolean = runCatching {
+        if (!initialized || title.isBlank() || hour !in 0..23 || minute !in 0..59) return@runCatching false
         val id = nextId()
         val entry = ReminderEntry(id, title.trim().take(200), hour, minute)
-        if (!schedule(entry)) return false
-        persist(reminders.value + entry)
-        SecureStorage.putInt(KEY_NEXT_ID, id + 1)
-        return true
-    }
+        val previous = reminders.value
+        if (!persist(previous + entry, synchronous = true)) return@runCatching false
+        if (!schedule(entry)) {
+            persist(previous, synchronous = true)
+            return@runCatching false
+        }
+        if (!SecureStorage.putStringSync(KEY_NEXT_ID, (id + 1).toString())) {
+            cancelAlarm(id)
+            persist(previous, synchronous = true)
+            return@runCatching false
+        }
+        true
+    }.getOrDefault(false)
 
     fun clearAll() {
         reminders.value.forEach { cancelAlarm(it.id) }
@@ -118,8 +125,7 @@ object ReminderRepository {
         return target.timeInMillis
     }
 
-    private fun persist(next: List<ReminderEntry>, synchronous: Boolean = false) {
-        reminders.value = next
+    private fun persist(next: List<ReminderEntry>, synchronous: Boolean = false): Boolean {
         val serialized = JSONArray().apply {
             next.forEach { r ->
                 put(JSONObject().apply {
@@ -130,7 +136,12 @@ object ReminderRepository {
                 })
             }
         }.toString()
-        if (synchronous) SecureStorage.putStringSync(KEY_ENTRIES, serialized) else SecureStorage.putString(KEY_ENTRIES, serialized)
+        val saved = runCatching {
+            if (synchronous) SecureStorage.putStringSync(KEY_ENTRIES, serialized)
+            else SecureStorage.putString(KEY_ENTRIES, serialized)
+        }.getOrDefault(false)
+        if (saved) reminders.value = next
+        return saved
     }
 
     private fun load(raw: String?): List<ReminderEntry> {

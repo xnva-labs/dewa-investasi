@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xnvalabs.smarteyex.core.VoiceController
+import com.xnvalabs.smarteyex.core.SecureStorage
 import com.xnvalabs.smarteyex.data.privacy.PrivacyRepository
 import com.xnvalabs.smarteyex.data.xnai.XnaiMessage
 import com.xnvalabs.smarteyex.data.xnai.XnaiRepository
@@ -114,6 +115,7 @@ private fun ThinkMode.colorC(): Color? = if (this == ThinkMode.SUPER) XnaiSuperC
 private data class ChatMessage(val text: String, val isUser: Boolean)
 
 private const val MAX_VISIBLE_MESSAGES = 100
+private const val KEY_THINK_MODE = "xnai.think_mode"
 
 /**
  * XNAI Core Screen — native translation, first screen built under the
@@ -142,7 +144,12 @@ private const val MAX_VISIBLE_MESSAGES = 100
  */
 @Composable
 fun XNAICoreScreen(onBack: () -> Unit, onVoiceCommand: (VoiceCommand) -> Unit = {}) {
-    var mode by remember { mutableStateOf(ThinkMode.RELAX) }
+    var mode by remember {
+        mutableStateOf(
+            runCatching { ThinkMode.valueOf(SecureStorage.getString(KEY_THINK_MODE) ?: ThinkMode.RELAX.name) }
+                .getOrDefault(ThinkMode.RELAX),
+        )
+    }
     var showModeMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -292,7 +299,15 @@ fun XNAICoreScreen(onBack: () -> Unit, onVoiceCommand: (VoiceCommand) -> Unit = 
                     mode = mode,
                     showModeMenu = showModeMenu,
                     onToggleMenu = { showModeMenu = !showModeMenu },
-                    onSelectMode = { m -> mode = m; showModeMenu = false },
+                    onSelectMode = { m ->
+            val saved = runCatching { SecureStorage.putStringSync(KEY_THINK_MODE, m.name) }.getOrDefault(false)
+            if (saved) {
+                mode = m
+                showModeMenu = false
+            } else {
+                voiceError = "Mode XNAI gagal disimpan. Coba lagi."
+            }
+        },
                     railWidthDp = railWidthDp,
                 )
 

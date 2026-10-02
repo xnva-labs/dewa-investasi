@@ -47,10 +47,21 @@ object SecureStorage {
         return true
     }
 
-    fun putStringSync(key: String, value: String): Boolean {
+    fun putStringSync(key: String, value: String): Boolean =
+        putStringsSync(mapOf(key to value))
+
+    /** Encrypt and commit a group of values together, without exposing partial settings. */
+    fun putStringsSync(values: Map<String, String>): Boolean {
         ensureInitialized()
-        val encrypted = encrypt(value)
-        return prefs.edit().putString(key, encrypted).commit()
+        if (values.isEmpty()) return true
+        return runCatching {
+            val encrypted = values.mapValues { (_, value) -> encrypt(value) }
+            synchronized(lock) {
+                val editor = prefs.edit()
+                encrypted.forEach { (key, value) -> editor.putString(key, value) }
+                editor.commit()
+            }
+        }.getOrDefault(false)
     }
 
     fun getString(key: String): String? {

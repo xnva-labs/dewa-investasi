@@ -49,24 +49,25 @@ object PrivacyRepository {
         initialized = true
     }
 
-    fun setCameraEnabled(enabled: Boolean) = update { it.copy(cameraEnabled = enabled) }
-    fun setMicrophoneEnabled(enabled: Boolean) = update { it.copy(microphoneEnabled = enabled) }
+    fun setCameraEnabled(enabled: Boolean) { update { it.copy(cameraEnabled = enabled) } }
+    fun setMicrophoneEnabled(enabled: Boolean) { update { it.copy(microphoneEnabled = enabled) } }
     fun setMemoryEnabled(enabled: Boolean) {
-        update { it.copy(memoryEnabled = enabled) }
-        if (!enabled) {
-            MemoryRepository.deleteAll()
-            CompanionRepository.clearPersonalizationSynchronously()
+        if (update { it.copy(memoryEnabled = enabled) } && !enabled) {
+            runCatching { MemoryRepository.deleteAll() }
+            runCatching { CompanionRepository.clearPersonalizationSynchronously() }
         }
     }
-    fun setCloudProcessingEnabled(enabled: Boolean) = update { it.copy(cloudProcessingEnabled = enabled) }
-    fun setFaceRecognitionEnabled(enabled: Boolean) = update { it.copy(faceRecognitionEnabled = enabled) }
+    fun setCloudProcessingEnabled(enabled: Boolean) { update { it.copy(cloudProcessingEnabled = enabled) } }
+    fun setFaceRecognitionEnabled(enabled: Boolean) { update { it.copy(faceRecognitionEnabled = enabled) } }
     fun setNotificationContentEnabled(enabled: Boolean) {
-        update { it.copy(notificationContentEnabled = enabled) }
-        if (!enabled) NotificationRepository.clear()
+        if (update { it.copy(notificationContentEnabled = enabled) } && !enabled) {
+            runCatching { NotificationRepository.clear() }
+        }
     }
     fun setVoicePersonalizationEnabled(enabled: Boolean) {
-        update { it.copy(voicePersonalizationEnabled = enabled) }
-        if (!enabled) VoiceProfileRepository.clear()
+        if (update { it.copy(voicePersonalizationEnabled = enabled) } && !enabled) {
+            runCatching { VoiceProfileRepository.clear() }
+        }
     }
 
     fun clearAllData() {
@@ -87,16 +88,19 @@ object PrivacyRepository {
         return if (legacy.contains(legacyKey)) legacy.getBoolean(legacyKey, default).also { SecureStorage.putStringSync(key, it.toString()) } else default
     }
 
-    private inline fun update(transform: (PrivacySettings) -> PrivacySettings) {
-        check(initialized) { "PrivacyRepository.init(context) must be called first" }
+    private inline fun update(transform: (PrivacySettings) -> PrivacySettings): Boolean {
+        if (!initialized) return false
         val next = transform(settings.value)
-        settings.value = next
-        SecureStorage.putBooleanSync(KEY_CAMERA, next.cameraEnabled)
-        SecureStorage.putBooleanSync(KEY_MIC, next.microphoneEnabled)
-        SecureStorage.putBooleanSync(KEY_MEMORY, next.memoryEnabled)
-        SecureStorage.putBooleanSync(KEY_CLOUD, next.cloudProcessingEnabled)
-        SecureStorage.putBooleanSync(KEY_FACE, next.faceRecognitionEnabled)
-        SecureStorage.putBooleanSync(KEY_NOTIFICATIONS, next.notificationContentEnabled)
-        SecureStorage.putBooleanSync(KEY_VOICE, next.voicePersonalizationEnabled)
+        val saved = SecureStorage.putStringsSync(mapOf(
+            KEY_CAMERA to next.cameraEnabled.toString(),
+            KEY_MIC to next.microphoneEnabled.toString(),
+            KEY_MEMORY to next.memoryEnabled.toString(),
+            KEY_CLOUD to next.cloudProcessingEnabled.toString(),
+            KEY_FACE to next.faceRecognitionEnabled.toString(),
+            KEY_NOTIFICATIONS to next.notificationContentEnabled.toString(),
+            KEY_VOICE to next.voicePersonalizationEnabled.toString(),
+        ))
+        if (saved) settings.value = next
+        return saved
     }
 }
