@@ -789,11 +789,16 @@ private fun nextOccurrenceForUi(entry: ReminderEntry, now: Long): Pair<ReminderE
     var candidate = calendarAt(base, entry.hour, entry.minute)
     if (entry.repeat == "Never") return if (candidate.after(startNow)) entry to candidate.timeInMillis else null
     if (entry.repeat == "Monthly") {
-        val desiredDay = base.get(Calendar.DAY_OF_MONTH)
+        val desiredDay = Calendar.getInstance().apply { timeInMillis = base }.get(Calendar.DAY_OF_MONTH)
         candidate.set(Calendar.DAY_OF_MONTH, 1)
+        candidate.set(Calendar.DAY_OF_MONTH, desiredDay.coerceAtMost(candidate.getActualMaximum(Calendar.DAY_OF_MONTH)))
+        candidate.set(Calendar.HOUR_OF_DAY, entry.hour)
+        candidate.set(Calendar.MINUTE, entry.minute)
+        candidate.set(Calendar.SECOND, 0)
+        candidate.set(Calendar.MILLISECOND, 0)
         while (!candidate.after(startNow)) {
-            candidate.add(Calendar.MONTH, 1)
             candidate.set(Calendar.DAY_OF_MONTH, 1)
+            candidate.add(Calendar.MONTH, 1)
             candidate.set(Calendar.DAY_OF_MONTH, desiredDay.coerceAtMost(candidate.getActualMaximum(Calendar.DAY_OF_MONTH)))
             candidate.set(Calendar.HOUR_OF_DAY, entry.hour)
             candidate.set(Calendar.MINUTE, entry.minute)

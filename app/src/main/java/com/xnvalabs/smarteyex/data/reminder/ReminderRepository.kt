@@ -132,7 +132,7 @@ object ReminderRepository {
             title = cleanTitle,
             hour = startHour,
             minute = startMinute,
-            dateMillis = date,
+            dateMillis = date?.timeInMillis,
             endHour = endHour,
             endMinute = endMinute,
             location = cleanLocation,
@@ -319,17 +319,19 @@ object ReminderRepository {
     }
 
     private fun advanceMonthly(base: Calendar, now: Calendar, forceNext: Boolean): Calendar {
-        // Move from the first of each month. Adding a month directly to the
-        // 29th-31st can overflow into the following month (e.g. Jan 31 + 1
-        // month becomes Mar 3), which silently skips February.
+        // Preserve the selected day while advancing from day 1 to avoid
+        // Calendar overflow (for example, Jan 31 + one month becoming Mar 3).
         val desiredDay = base.get(Calendar.DAY_OF_MONTH)
-        val target = (base.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
-        if (forceNext || !target.after(now)) target.add(Calendar.MONTH, 1)
-        target.set(Calendar.DAY_OF_MONTH, desiredDay.coerceAtMost(target.getActualMaximum(Calendar.DAY_OF_MONTH)))
-        while (!target.after(now)) {
-            target.add(Calendar.MONTH, 1)
+        val target = base.clone() as Calendar
+        if (forceNext || !target.after(now)) {
             target.set(Calendar.DAY_OF_MONTH, 1)
+            target.add(Calendar.MONTH, 1)
             target.set(Calendar.DAY_OF_MONTH, desiredDay.coerceAtMost(target.getActualMaximum(Calendar.DAY_OF_MONTH)))
+            while (!target.after(now)) {
+                target.set(Calendar.DAY_OF_MONTH, 1)
+                target.add(Calendar.MONTH, 1)
+                target.set(Calendar.DAY_OF_MONTH, desiredDay.coerceAtMost(target.getActualMaximum(Calendar.DAY_OF_MONTH)))
+            }
         }
         return target
     }
