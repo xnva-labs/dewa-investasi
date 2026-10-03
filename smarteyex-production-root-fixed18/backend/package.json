@@ -1,0 +1,12 @@
+{
+  "name": "xnai-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "XNAI API for SmartEyeX: /chat, /vision, /translate. Zero runtime dependencies.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}
