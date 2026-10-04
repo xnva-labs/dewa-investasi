@@ -44,6 +44,9 @@ fun PrivacyPolicyScreen(onBack: () -> Unit) {
         PolicySection("Cloud AI") {
             "Pesan, konteks memory, teks terjemahan, atau frame kamera hanya boleh dikirim ke backend ketika Cloud Processing aktif. Ketika Memory OFF, isi memory tidak dimasukkan ke payload XNAI."
         }
+        PolicySection("Usia") {
+            "SmartEyeX meminta tahun lahir (bukan tanggal) dan menyimpannya terenkripsi di perangkat. Server hanya menerima kelompok usia (remaja/dewasa), tidak pernah tahun lahir. Untuk usia 13-17, chat dan terjemahan AI butuh persetujuan orang tua/wali; kamera ke cloud, pengenalan wajah, dan baca notifikasi tidak tersedia. Layanan ini untuk usia 13 tahun ke atas."
+        }
         PolicySection("ID perangkat") {
             "Setiap permintaan ke backend membawa ID acak per instalasi (bukan IMEI, nomor telepon, atau akun) yang dipakai untuk membatasi penyalahgunaan dan biaya. ID ini dihapus saat kamu memakai menu reset."
         }

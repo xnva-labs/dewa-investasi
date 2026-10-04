@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 import { HttpError, parseChat, parseTranslate, parseVision } from "./validate.mjs";
 import { DailyBudget, IdempotencyCache, TokenBucket } from "./limits.mjs";
 import { createProvider } from "./providers.mjs";
+import { normalizeBand } from "./persona.mjs";
+import { cleanForVoice, crisisFallback, detectCrisisInConversation } from "./safety.mjs";
 
 const JSON_BODY_LIMIT = 64 * 1024;
 const VISION_BODY_LIMIT = 3_300_000;
@@ -58,9 +60,10 @@ export function createApp({
   const idempotency = new IdempotencyCache({ now });
 
   const routes = {
-    "/chat": { limit: JSON_BODY_LIMIT, parse: parseChat, run: (input) => provider.chat(input), field: "reply" },
-    "/translate": { limit: JSON_BODY_LIMIT, parse: parseTranslate, run: (input) => provider.translate(input), field: "translated" },
-    "/vision": { limit: VISION_BODY_LIMIT, parse: parseVision, run: (input) => provider.vision(input), field: "description" },
+    "/chat": { limit: JSON_BODY_LIMIT, parse: parseChat, run: (input) => provider.chat(input), field: "reply", bands: ["ADULT", "TEEN"] },
+    "/translate": { limit: JSON_BODY_LIMIT, parse: parseTranslate, run: (input) => provider.translate(input), field: "translated", bands: ["ADULT", "TEEN"] },
+    // Camera frames can contain bystanders; cloud vision is adults-only.
+    "/vision": { limit: VISION_BODY_LIMIT, parse: parseVision, run: (input) => provider.vision(input), field: "description", bands: ["ADULT"] },
   };
 
   function clientIp(req) {
@@ -96,21 +99,36 @@ export function createApp({
         }
       }
 
-      const input = route.parse(await readJson(req, route.limit));
+      // Self-declared by the app (it only knows a birth year). Missing/unknown is treated as TEEN, the safer profile.
+      const ageBand = normalizeBand(req.headers["x-age-band"]);
+      if (ageBand === "CHILD") throw new HttpError(403, "Layanan ini untuk usia 13 tahun ke atas.");
+      if (!route.bands.includes(ageBand)) throw new HttpError(403, "Fitur ini belum tersedia untuk usia kamu.");
+
+      const parsed = route.parse(await readJson(req, route.limit));
+      const crisis = url.pathname === "/chat" && detectCrisisInConversation(parsed.message, parsed.history);
+      const input = { ...parsed, ageBand, crisis };
       const rawKey = String(req.headers["idempotency-key"] || "");
       const key = IDEMPOTENCY_KEY.test(rawKey) ? `${deviceId}:${url.pathname}:${rawKey}` : null;
 
-      const text = await idempotency.run(key, async () => {
-        if (!budget.tryUse()) throw new HttpError(503, "Kuota harian layanan AI habis. Coba lagi besok.");
+      const payload = await idempotency.run(key, async () => {
+        // A person in crisis must always get an answer, even if the budget is spent or the model is down.
+        if (!budget.tryUse()) {
+          if (crisis) return { reply: crisisFallback(ageBand), safety: "crisis" };
+          throw new HttpError(503, "Kuota harian layanan AI habis. Coba lagi besok.");
+        }
         try {
-          return await route.run(input);
+          const text = await route.run(input);
+          const out = { [route.field]: url.pathname === "/chat" ? cleanForVoice(text) : text };
+          if (crisis) out.safety = "crisis";
+          return out;
         } catch (error) {
           budget.refund();
+          if (crisis) return { reply: crisisFallback(ageBand), safety: "crisis" };
           throw error;
         }
       });
       status = 200;
-      return send(res, 200, { [route.field]: text });
+      return send(res, 200, payload);
     } catch (error) {
       if (error instanceof HttpError) {
         status = error.status;

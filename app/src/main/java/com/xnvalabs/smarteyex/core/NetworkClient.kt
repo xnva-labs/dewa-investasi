@@ -1,6 +1,7 @@
 package com.xnvalabs.smarteyex.core
 
 import com.xnvalabs.smarteyex.BuildConfig
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -98,6 +99,7 @@ object NetworkClient {
             setRequestProperty("Accept-Charset", "UTF-8")
             setRequestProperty("User-Agent", "SmartEyeX/${BuildConfig.VERSION_NAME}")
             setRequestProperty("X-Device-Id", DeviceIdentity.id())
+            setRequestProperty("X-Age-Band", AgeRepository.headerValue())
             requestId?.takeIf { it.isNotBlank() }?.let { setRequestProperty("Idempotency-Key", it) }
         }
     }

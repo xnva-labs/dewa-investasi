@@ -2,6 +2,8 @@ package com.xnvalabs.smarteyex.data.vision
 
 import android.util.Base64
 import com.xnvalabs.smarteyex.core.AppDiagnostics
+import com.xnvalabs.smarteyex.data.age.AgeFeature
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.core.NetworkClient
 import com.xnvalabs.smarteyex.data.privacy.PrivacyRepository
 import com.xnvalabs.smarteyex.data.xnai.XnaiRepository
@@ -15,6 +17,9 @@ object VisionRepository {
     suspend fun analyzeFrame(jpegBytes: ByteArray): Result<String> = withContext(Dispatchers.IO) {
         if (!PrivacyRepository.settings.value.cameraEnabled) return@withContext Result.failure(IllegalStateException("Camera OFF — aktifkan di Privacy Control."))
         if (!PrivacyRepository.settings.value.cloudProcessingEnabled) return@withContext Result.failure(IllegalStateException("Cloud Processing OFF — aktifkan di Privacy Control."))
+        if (!AgeRepository.allows(AgeFeature.CLOUD_VISION)) {
+            return@withContext Result.failure(IllegalStateException(AgeRepository.denial(AgeFeature.CLOUD_VISION)))
+        }
         if (jpegBytes.isEmpty()) return@withContext Result.failure(IllegalArgumentException("Frame kamera kosong."))
         if (jpegBytes.size > 2_000_000) return@withContext Result.failure(IllegalArgumentException("Frame terlalu besar. Ambil gambar lagi."))
         val configuredEndpoint = XnaiRepository.refreshEndpoint().getOrElse { error ->

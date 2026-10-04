@@ -6,6 +6,7 @@ import com.xnvalabs.smarteyex.data.call.CallRepository
 import com.xnvalabs.smarteyex.data.education.EducationRepository
 import com.xnvalabs.smarteyex.data.emergency.EmergencyRepository
 import com.xnvalabs.smarteyex.data.enterprise.EnterpriseRepository
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.data.face.FaceEngine
 import com.xnvalabs.smarteyex.data.face.FaceRepository
 import com.xnvalabs.smarteyex.data.glasses.GlassesRepository
@@ -33,8 +34,10 @@ class SmartEyeXApplication : Application() {
         UserModelRepository.init(this)
         CompanionRepository.init(this)
         VoiceProfileRepository.init(this)
+        AgeRepository.init(this)
         FaceRepository.init(this)
         FaceEngine.init(this)
         GlassesRepository.init(this)
+        PrivacyRepository.enforceAgePolicy()
     }
 }

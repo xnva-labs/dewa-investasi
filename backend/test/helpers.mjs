@@ -25,7 +25,7 @@ export async function startApp(options) {
 export async function post(base, path, body, headers = {}) {
   const res = await fetch(base + path, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-device-id": DEVICE, ...headers },
+    headers: { "content-type": "application/json", "x-device-id": DEVICE, "x-age-band": "ADULT", ...headers },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
   let json = null;

@@ -4,6 +4,8 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.xnvalabs.smarteyex.BuildConfig
+import com.xnvalabs.smarteyex.data.age.AgeFeature
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.data.notifications.NotificationFilter
 import com.xnvalabs.smarteyex.data.notifications.NotificationRepository
 import com.xnvalabs.smarteyex.data.notifications.RecentDeduper
@@ -25,6 +27,7 @@ class SmartEyeXNotificationListener : NotificationListenerService() {
         PrivacyRepository.init(applicationContext)
         NotificationRepository.bind(applicationContext)
         if (!PrivacyRepository.settings.value.notificationContentEnabled) return
+        if (!AgeRepository.allows(AgeFeature.NOTIFICATION_CONTENT)) return
         runCatching {
             activeNotifications.orEmpty().forEach(::consume)
         }

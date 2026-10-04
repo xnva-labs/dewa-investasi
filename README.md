@@ -69,3 +69,6 @@ All personalization remains permission-controlled and deletable.
 ## XNAI backend and fixed18
 - `backend/` — runnable API (`npm test`, 26 tests); see `backend/README.md`. Analysis, fixes and honest limits: `FIXED18_AUDIT.md`.
 - `scripts/kotlin-static-check.py` — heuristic checker used in CI (not a compiler).
+
+## Persona and age groups (fixed19)
+- XNAI persona + crisis mode live in `backend/src/persona.mjs` / `safety.mjs`; the app asks for a birth **year** only (`data/age/`). See `FIXED19_AUDIT.md`.

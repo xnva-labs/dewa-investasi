@@ -4,6 +4,8 @@ import com.xnvalabs.smarteyex.BuildConfig
 import com.xnvalabs.smarteyex.core.AppDiagnostics
 import com.xnvalabs.smarteyex.core.NetworkClient
 import com.xnvalabs.smarteyex.core.SecureStorage
+import com.xnvalabs.smarteyex.data.age.AgeFeature
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.data.memory.MemoryRepository
 import com.xnvalabs.smarteyex.data.memory.MemoryType
 import com.xnvalabs.smarteyex.data.companion.CompanionRepository
@@ -55,6 +57,9 @@ object XnaiRepository {
         if (!PrivacyRepository.settings.value.cloudProcessingEnabled) {
             return@withContext Result.failure(IllegalStateException("Cloud Processing OFF — aktifkan di Privacy Control."))
         }
+        if (!AgeRepository.allows(AgeFeature.CLOUD_CHAT)) {
+            return@withContext Result.failure(IllegalStateException(AgeRepository.denial(AgeFeature.CLOUD_CHAT)))
+        }
         val message = userText.trim()
         if (message.isBlank()) return@withContext Result.failure(IllegalArgumentException("Pesan kosong."))
         if (message.length > MAX_MESSAGE_CHARS) return@withContext Result.failure(IllegalArgumentException("Pesan terlalu panjang."))
@@ -69,8 +74,11 @@ object XnaiRepository {
             put("thinkMode", thinkMode.take(40))
             put("appVersion", BuildConfig.VERSION_NAME)
             put("platform", "android")
+            put("localHour", java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY))
             put("reasoning", reasoningFor(thinkMode))
-            put("companion", if (PrivacyRepository.settings.value.memoryEnabled) CompanionRepository.companionContext() else "mode=companion; personalization=off")
+            // Personal memory/companion context only goes to the cloud for adults.
+            val personalize = PrivacyRepository.settings.value.memoryEnabled && AgeRepository.allows(AgeFeature.SEND_MEMORY_CONTEXT)
+            put("companion", if (personalize) CompanionRepository.companionContext() else "mode=companion; personalization=off")
             put("context", buildContext())
             put("history", JSONArray().apply {
                 history.takeLast(MAX_HISTORY).forEach { msg ->
@@ -100,6 +108,7 @@ object XnaiRepository {
 
     private fun buildContext(): String {
         if (!PrivacyRepository.settings.value.memoryEnabled) return ""
+        if (!AgeRepository.allows(AgeFeature.SEND_MEMORY_CONTEXT)) return ""
         val entries = MemoryRepository.entries.value
         val profile = entries.filter { it.type == MemoryType.PROFILE }
         val preferences = entries.filter { it.type == MemoryType.PREFERENCE }

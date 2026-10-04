@@ -11,6 +11,8 @@ import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import com.xnvalabs.smarteyex.core.AppDiagnostics
+import com.xnvalabs.smarteyex.data.age.AgeFeature
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.data.privacy.PrivacyRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -121,6 +123,7 @@ object FaceEngine {
 
     private fun gate(): Throwable? {
         val settings = PrivacyRepository.settings.value
+        if (!AgeRepository.allows(AgeFeature.FACE_RECOGNITION)) return IllegalStateException(AgeRepository.denial(AgeFeature.FACE_RECOGNITION))
         if (!settings.faceRecognitionEnabled) return IllegalStateException("Face Recognition OFF — aktifkan di Privacy Control.")
         return null
     }

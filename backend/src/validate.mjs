@@ -51,7 +51,9 @@ export function parseChat(body) {
     }
   }
   const thinkRaw = str(body.thinkMode, "thinkMode", LIMITS.thinkMode).toUpperCase();
+  const hour = Number.isInteger(body.localHour) && body.localHour >= 0 && body.localHour <= 23 ? body.localHour : null;
   return {
+    localHour: hour,
     message,
     history,
     thinkMode: ALLOWED_THINK.has(thinkRaw) ? thinkRaw : "RELAX",

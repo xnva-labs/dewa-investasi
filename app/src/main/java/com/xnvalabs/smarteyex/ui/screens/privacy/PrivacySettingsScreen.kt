@@ -59,7 +59,7 @@ private data class ToggleRow(
  * [onBack] fires from the "‹" button. [onSetPin] fires from "Set PIN".
  */
 @Composable
-fun PrivacySettingsScreen(onBack: () -> Unit, onSetPin: () -> Unit, onOpenPrivacyPolicy: () -> Unit) {
+fun PrivacySettingsScreen(onBack: () -> Unit, onSetPin: () -> Unit, onOpenPrivacyPolicy: () -> Unit, onOpenAge: () -> Unit = {}) {
     val context = LocalContext.current
     LaunchedEffect(Unit) { PrivacyRepository.init(context) }
     val settings = PrivacyRepository.settings.value
@@ -212,6 +212,23 @@ fun PrivacySettingsScreen(onBack: () -> Unit, onSetPin: () -> Unit, onOpenPrivac
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Privacy & Data", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
                     Text("Lihat bagaimana SmartEyeX memperlakukan data sensitif.", fontSize = 12.sp, color = TextMutedLight)
+                }
+                Text("›", fontSize = 18.sp, color = TextMutedLight)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(LightSurface, RoundedCornerShape(14.dp))
+                    .clickable { onOpenAge() }
+                    .padding(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Usia & persetujuan orang tua", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
+                    Text("Lihat kelompok usia dan fitur yang tersedia.", fontSize = 12.sp, color = TextMutedLight)
                 }
                 Text("›", fontSize = 18.sp, color = TextMutedLight)
             }

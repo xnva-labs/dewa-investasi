@@ -23,7 +23,7 @@ export function createProvider(env = process.env) {
 export class EchoProvider {
   name = "echo";
   async chat(req) {
-    return `Echo XNAI (${req.thinkMode}): ${req.message}`;
+    return `Echo XNAI (${req.thinkMode}/${req.ageBand}): ${req.message}`;
   }
   async vision() {
     return "Echo XNAI: gambar JPEG diterima (provider uji, tanpa analisis nyata).";

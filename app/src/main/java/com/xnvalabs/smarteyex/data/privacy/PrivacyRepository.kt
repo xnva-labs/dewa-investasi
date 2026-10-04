@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.compose.runtime.mutableStateOf
 import com.xnvalabs.smarteyex.core.AppDiagnostics
 import com.xnvalabs.smarteyex.core.DeviceIdentity
+import com.xnvalabs.smarteyex.data.age.AgeBand
+import com.xnvalabs.smarteyex.data.age.AgeFeature
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.core.SecureStorage
 import com.xnvalabs.smarteyex.data.call.CallRepository
 import com.xnvalabs.smarteyex.data.companion.CompanionRepository
@@ -81,8 +84,36 @@ object PrivacyRepository {
         return saved
     }
 
-    fun setCloudProcessingEnabled(enabled: Boolean): Boolean = update { it.copy(cloudProcessingEnabled = enabled) }
+    /** Refuse to turn a feature ON when the user's age group does not allow it. Turning OFF is always allowed. */
+    private fun refuseForAge(enabled: Boolean, feature: AgeFeature): Boolean {
+        if (!enabled || AgeRepository.allows(feature)) return false
+        lastWriteError.value = AgeRepository.denial(feature)
+        return true
+    }
+
+    /**
+     * Switch off everything the current age group may not use (also deletes the related data).
+     * Call after the age changes and at app start.
+     */
+    fun enforceAgePolicy() {
+        // While the age is still unknown the repositories already refuse cloud/face/notification use;
+        // do not erase an existing user's choices or face data just because they have not answered yet.
+        val band = AgeRepository.band.value
+        if (band == AgeBand.ADULT || band == AgeBand.UNKNOWN) return
+        val s = settings.value
+        if (s.faceRecognitionEnabled && !AgeRepository.allows(AgeFeature.FACE_RECOGNITION)) setFaceRecognitionEnabled(false)
+        if (s.notificationContentEnabled && !AgeRepository.allows(AgeFeature.NOTIFICATION_CONTENT)) setNotificationContentEnabled(false)
+        if (s.voicePersonalizationEnabled && !AgeRepository.allows(AgeFeature.VOICE_PERSONALIZATION)) setVoicePersonalizationEnabled(false)
+        if (s.cloudProcessingEnabled && !AgeRepository.allows(AgeFeature.CLOUD_CHAT)) setCloudProcessingEnabled(false)
+    }
+
+    fun setCloudProcessingEnabled(enabled: Boolean): Boolean {
+        if (refuseForAge(enabled, AgeFeature.CLOUD_CHAT)) return false
+        return update { it.copy(cloudProcessingEnabled = enabled) }
+    }
+
     fun setFaceRecognitionEnabled(enabled: Boolean): Boolean {
+        if (refuseForAge(enabled, AgeFeature.FACE_RECOGNITION)) return false
         val saved = update { it.copy(faceRecognitionEnabled = enabled) }
         if (saved && !enabled) {
             // Consent withdrawn: stop processing (FaceEngine checks this flag) and erase stored templates.
@@ -95,6 +126,7 @@ object PrivacyRepository {
     }
 
     fun setNotificationContentEnabled(enabled: Boolean): Boolean {
+        if (refuseForAge(enabled, AgeFeature.NOTIFICATION_CONTENT)) return false
         val saved = update { it.copy(notificationContentEnabled = enabled) }
         if (saved) {
             if (enabled) {
@@ -110,6 +142,7 @@ object PrivacyRepository {
     }
 
     fun setVoicePersonalizationEnabled(enabled: Boolean): Boolean {
+        if (refuseForAge(enabled, AgeFeature.VOICE_PERSONALIZATION)) return false
         val saved = update { it.copy(voicePersonalizationEnabled = enabled) }
         if (saved && !enabled) runCatching { VoiceProfileRepository.clear() }
         return saved
@@ -128,6 +161,7 @@ object PrivacyRepository {
             runCatching { NotificationRepository.clear(); true }.getOrDefault(false),
             runCatching { FaceRepository.deleteAll() }.getOrDefault(false),
             runCatching { DeviceIdentity.reset(); true }.getOrDefault(false),
+            runCatching { AgeRepository.clear() }.getOrDefault(false),
             runCatching { GlassesRepository.clearFrame(); true }.getOrDefault(false),
         )
         val saved = update { PrivacySettings.DEFAULT }

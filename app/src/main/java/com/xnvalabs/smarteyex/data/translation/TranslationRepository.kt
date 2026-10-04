@@ -1,6 +1,8 @@
 package com.xnvalabs.smarteyex.data.translation
 
 import com.xnvalabs.smarteyex.core.AppDiagnostics
+import com.xnvalabs.smarteyex.data.age.AgeFeature
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.core.NetworkClient
 import com.xnvalabs.smarteyex.data.privacy.PrivacyRepository
 import com.xnvalabs.smarteyex.data.xnai.XnaiRepository
@@ -12,6 +14,9 @@ import java.util.UUID
 object TranslationRepository {
     suspend fun translate(text: String, targetLanguage: String): Result<String> = withContext(Dispatchers.IO) {
         if (!PrivacyRepository.settings.value.cloudProcessingEnabled) return@withContext Result.failure(IllegalStateException("Cloud Processing OFF — aktifkan di Privacy Control."))
+        if (!AgeRepository.allows(AgeFeature.CLOUD_TRANSLATE)) {
+            return@withContext Result.failure(IllegalStateException(AgeRepository.denial(AgeFeature.CLOUD_TRANSLATE)))
+        }
         val cleanText = text.trim()
         val cleanLanguage = targetLanguage.trim().take(20)
         if (cleanText.isBlank()) return@withContext Result.failure(IllegalArgumentException("Teks kosong."))

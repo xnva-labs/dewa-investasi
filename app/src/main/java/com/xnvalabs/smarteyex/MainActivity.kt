@@ -12,7 +12,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.xnvalabs.smarteyex.data.age.AgeBand
+import com.xnvalabs.smarteyex.data.age.AgeRepository
 import com.xnvalabs.smarteyex.data.auth.AuthRepository
+import com.xnvalabs.smarteyex.ui.screens.age.AgeGateScreen
 import com.xnvalabs.smarteyex.ui.screens.activation.ActivationScreen
 import com.xnvalabs.smarteyex.ui.screens.auth.PinLockScreen
 import com.xnvalabs.smarteyex.ui.screens.auth.PinMode
@@ -79,7 +82,7 @@ class MainActivity : ComponentActivity() {
 
 /** All production screens exposed by the current application shell. */
 private enum class Screen {
-    Loading, PinUnlock, Activation, System, Profile, XnaiCore, Listener,
+    Loading, PinUnlock, AgeGate, Activation, System, Profile, XnaiCore, Listener,
     PrivacySettings, PrivacyPolicy, PinSetup, Memory, Vision, Reminder, Media, Translation,
     Device, Emergency, Navigation, Call, Library, Progress, Enterprise, Face,
 }
@@ -94,7 +97,18 @@ private fun SmartEyeXApp() {
     var pendingReminderDateSpecified by remember { mutableStateOf(false) }
     var pendingReplyText by remember { mutableStateOf<String?>(null) }
     var pendingNavigationDestination by remember { mutableStateOf("") }
+    var ageFromSettings by remember { mutableStateOf(false) }
+    var teenPromptSeen by remember { mutableStateOf(false) }
     val isUnlocked by AuthRepository.isUnlocked
+
+    // After unlock: unknown/child users must pass the age screen; teens without parental consent see it once per launch.
+    fun afterUnlock(): Screen {
+        val band = AgeRepository.band.value
+        val needsGate = AgeRepository.gateNeeded() ||
+            (band == AgeBand.TEEN && !AgeRepository.parentConsent.value && !teenPromptSeen)
+        if (needsGate) ageFromSettings = false
+        return if (needsGate) Screen.AgeGate else Screen.Activation
+    }
 
     LaunchedEffect(isUnlocked) {
         if (!isUnlocked && currentScreen !in setOf(Screen.Loading, Screen.PinUnlock, Screen.PinSetup)) {
@@ -102,7 +116,7 @@ private fun SmartEyeXApp() {
         }
     }
 
-    BackHandler(enabled = currentScreen !in setOf(Screen.Loading, Screen.PinUnlock, Screen.System)) {
+    BackHandler(enabled = currentScreen !in setOf(Screen.Loading, Screen.PinUnlock, Screen.AgeGate, Screen.System)) {
         currentScreen = when (currentScreen) {
             Screen.PrivacyPolicy, Screen.PinSetup -> Screen.PrivacySettings
             Screen.Face -> Screen.Device
@@ -147,13 +161,21 @@ private fun SmartEyeXApp() {
                 // process start (AuthRepository.isUnlocked resets to
                 // false on fresh launch) — otherwise skip straight to
                 // Activation, same as before this feature existed.
-                currentScreen = if (AuthRepository.isUnlocked.value) Screen.Activation else Screen.PinUnlock
+                currentScreen = if (AuthRepository.isUnlocked.value) afterUnlock() else Screen.PinUnlock
             },
         )
 
         Screen.PinUnlock -> PinLockScreen(
             mode = PinMode.UNLOCK,
-            onDone = { currentScreen = Screen.Activation },
+            onDone = { currentScreen = afterUnlock() },
+        )
+
+        Screen.AgeGate -> AgeGateScreen(
+            fromSettings = ageFromSettings,
+            onDone = {
+                teenPromptSeen = true
+                currentScreen = if (ageFromSettings) Screen.PrivacySettings else Screen.Activation
+            },
         )
 
         Screen.Activation -> ActivationScreen(
@@ -207,6 +229,10 @@ private fun SmartEyeXApp() {
             onBack = { currentScreen = Screen.System },
             onSetPin = { currentScreen = Screen.PinSetup },
             onOpenPrivacyPolicy = { currentScreen = Screen.PrivacyPolicy },
+            onOpenAge = {
+                ageFromSettings = true
+                currentScreen = Screen.AgeGate
+            },
         )
 
         Screen.PrivacyPolicy -> PrivacyPolicyScreen(
