@@ -12,7 +12,7 @@ permissions:
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
   JAVA_VERSION: '17'
-  # Must match this project's Android Gradle Plugin 9.2.0 compatibility line.
+  # Must match this project's Android Gradle Plugin 9.2.x compatibility line.
   GRADLE_VERSION: '9.4.1'
   # Source of truth: app/build.gradle.kts -> compileSdk/targetSdk = 36.
   ANDROID_COMPILE_SDK: '36'
@@ -45,6 +45,7 @@ jobs:
           test -f .github/workflows/android.yml
           test -f app/src/test/java/id/fajar/zahra/core/RewardGuardTest.kt
           test -f app/src/test/java/id/fajar/zahra/bridge/GameBridgeContractTest.kt
+          test -f app/src/test/java/id/fajar/zahra/backup/BackupContractTest.kt
           test -f app/src/androidTest/java/id/fajar/zahra/bridge/BridgeSecurityInstrumentedTest.kt
           test -f app/src/androidTest/java/id/fajar/zahra/bridge/GameBridgeTransportInstrumentedTest.kt
           test -f app/src/androidTest/java/id/fajar/zahra/data/RewardIdempotencyInstrumentedTest.kt
@@ -63,16 +64,18 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
-      - name: Prepare Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-${{ env.ANDROID_COMPILE_SDK }} build-tools;${{ env.ANDROID_BUILD_TOOLS }}'
+      - name: Verify Android SDK tools
         shell: bash
         run: |
           set -euo pipefail
-          : "${ANDROID_HOME:=/usr/local/lib/android/sdk}"
-          export ANDROID_HOME
-          export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-          yes | sdkmanager --licenses >/dev/null || true
+          command -v sdkmanager
+          sdkmanager --version
+          command -v adb
+          adb version
       - name: Verify project Android configuration
         shell: bash
         run: |
@@ -82,14 +85,13 @@ jobs:
           grep -q 'minSdk = 24' app/build.gradle.kts
           grep -q 'sourceCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
           grep -q 'targetCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
-          grep -q 'kotlinOptions.*jvmTarget = "17"' app/build.gradle.kts
+          ! grep -q 'org.jetbrains.kotlin.android' app/build.gradle.kts
+          grep -q 'org.jetbrains.kotlin.plugin.compose' build.gradle.kts
           grep -q 'org.godotengine:godot:4.7.2.stable' app/build.gradle.kts
           grep -q 'config/features=PackedStringArray("4.7")' app/src/main/assets/project.godot
           echo 'project configuration: PASS'
-      - name: Install Android SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
       - name: Unit tests
@@ -139,16 +141,18 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
-      - name: Prepare Android SDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools emulator platforms;android-${{ env.ANDROID_COMPILE_SDK }} system-images;android-${{ env.ANDROID_TEST_API }};google_apis;x86_64 build-tools;${{ env.ANDROID_BUILD_TOOLS }}'
+      - name: Verify Android SDK tools
         shell: bash
         run: |
           set -euo pipefail
-          : "${ANDROID_HOME:=/usr/local/lib/android/sdk}"
-          export ANDROID_HOME
-          export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-          yes | sdkmanager --licenses >/dev/null || true
+          command -v sdkmanager
+          sdkmanager --version
+          command -v adb
+          adb version
       - name: Verify project Android configuration
         shell: bash
         run: |
@@ -157,10 +161,8 @@ jobs:
           grep -q 'targetSdk = 36' app/build.gradle.kts
           grep -q 'minSdk = 24' app/build.gradle.kts
           echo 'project Android SDK configuration: PASS'
-      - name: Install Android SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "system-images;android-${ANDROID_TEST_API};google_apis;x86_64" "build-tools;${ANDROID_BUILD_TOOLS}"
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
       - name: Run Android instrumented tests

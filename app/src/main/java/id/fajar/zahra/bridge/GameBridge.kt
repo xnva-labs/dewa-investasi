@@ -61,7 +61,12 @@ object GameBridge {
                 file.delete()
                 continue
             }
-            val json = runCatching { JSONObject(payload) }.getOrNull() ?: continue
+            val json = runCatching { JSONObject(payload) }.getOrNull() ?: run {
+                // Invalid signed payloads cannot ever become valid later. Drop them so
+                // one corrupt event cannot permanently block the durable queue.
+                file.delete()
+                continue
+            }
             val version = json.optInt("version", 0)
             val type = json.optString("type", "")
             if (version != 1 || type.isBlank()) {

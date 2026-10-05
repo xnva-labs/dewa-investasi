@@ -1,6 +1,7 @@
 package id.fajar.zahra.reminder
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -17,6 +18,7 @@ import id.fajar.zahra.settings.SettingsStore
 import kotlinx.coroutines.flow.first
 
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    @SuppressLint("MissingPermission")
     override suspend fun doWork(): Result {
         Notifications.createChannel(applicationContext)
         val settings = SettingsStore(applicationContext)
