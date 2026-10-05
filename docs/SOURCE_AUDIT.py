@@ -15,7 +15,7 @@ receiver = (ROOT / 'app/src/main/java/id/fajar/zahra/reminder/ReminderReschedule
 game = (ROOT / 'app/src/main/assets/scripts/world.gd').read_text()
 
 checks = {
-    'android_sdk_target': 'compileSdk = 36' in app and 'targetSdk = 36' in app and 'minSdk = 24' in app,
+    'android_sdk_target': 'compileSdk = 37' in app and 'targetSdk = 36' in app and 'minSdk = 24' in app,
     'version_0_13': 'versionCode = 13' in app and 'versionName = "0.13.0"' in app,
     'backup_disabled': 'android:allowBackup="false"' in manifest,
     'backup_rules': (ROOT / 'app/src/main/res/xml/backup_rules.xml').exists() and (ROOT / 'app/src/main/res/xml/data_extraction_rules.xml').exists(),

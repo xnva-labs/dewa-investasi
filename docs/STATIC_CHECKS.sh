@@ -16,7 +16,7 @@ contract_test=Path("$ROOT/app/src/test/java/id/fajar/zahra/backup/BackupContract
 root_gradle=Path("$ROOT/build.gradle.kts").read_text()
 game=Path("$G").read_text()
 checks={
- "api36": 'compileSdk = 36' in app and 'targetSdk = 36' in app,
+ "api37_compile": 'compileSdk = 37' in app and 'targetSdk = 36' in app,
  "agp9_builtin_kotlin": 'id("com.android.application") version "9.2.1" apply false' in root_gradle and 'org.jetbrains.kotlin.android' not in app and 'kotlinOptions' not in app,
  "compose_compiler_alignment": 'id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false' in root_gradle,
  "ksp_agp9": 'id("com.google.devtools.ksp") version "2.3.12" apply false' in root_gradle,

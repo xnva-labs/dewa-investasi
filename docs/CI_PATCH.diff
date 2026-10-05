@@ -1,15 +1,22 @@
 --- a/.github/workflows/android.yml
 +++ b/.github/workflows/android.yml
-@@ -12,7 +12,7 @@
+@@ -12,10 +12,12 @@
  env:
    GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
    JAVA_VERSION: '17'
 -  # Must match this project's Android Gradle Plugin 9.2.0 compatibility line.
 +  # Must match this project's Android Gradle Plugin 9.2.x compatibility line.
    GRADLE_VERSION: '9.4.1'
-   # Source of truth: app/build.gradle.kts -> compileSdk/targetSdk = 36.
-   ANDROID_COMPILE_SDK: '36'
-@@ -45,6 +45,7 @@
+-  # Source of truth: app/build.gradle.kts -> compileSdk/targetSdk = 36.
+-  ANDROID_COMPILE_SDK: '36'
++  # Source of truth: app/build.gradle.kts -> compileSdk = 37, targetSdk = 36.
++  # compileSdk 37 is required by the current Compose/AndroidX dependencies;
++  # targetSdk intentionally stays at 36 to avoid changing runtime behavior.
++  ANDROID_COMPILE_SDK: '37'
+   ANDROID_BUILD_TOOLS: '36.0.0'
+   ANDROID_TEST_API: '36'
+ 
+@@ -45,6 +47,7 @@
            test -f .github/workflows/android.yml
            test -f app/src/test/java/id/fajar/zahra/core/RewardGuardTest.kt
            test -f app/src/test/java/id/fajar/zahra/bridge/GameBridgeContractTest.kt
@@ -17,7 +24,7 @@
            test -f app/src/androidTest/java/id/fajar/zahra/bridge/BridgeSecurityInstrumentedTest.kt
            test -f app/src/androidTest/java/id/fajar/zahra/bridge/GameBridgeTransportInstrumentedTest.kt
            test -f app/src/androidTest/java/id/fajar/zahra/data/RewardIdempotencyInstrumentedTest.kt
-@@ -63,16 +64,18 @@
+@@ -63,33 +66,34 @@
            distribution: temurin
            java-version: ${{ env.JAVA_VERSION }}
            cache: gradle
@@ -43,7 +50,10 @@
        - name: Verify project Android configuration
          shell: bash
          run: |
-@@ -82,14 +85,13 @@
+           set -euo pipefail
+-          grep -q 'compileSdk = 36' app/build.gradle.kts
++          grep -q 'compileSdk = 37' app/build.gradle.kts
+           grep -q 'targetSdk = 36' app/build.gradle.kts
            grep -q 'minSdk = 24' app/build.gradle.kts
            grep -q 'sourceCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
            grep -q 'targetCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
@@ -61,7 +71,7 @@
          with:
            gradle-version: ${{ env.GRADLE_VERSION }}
        - name: Unit tests
-@@ -139,16 +141,18 @@
+@@ -139,28 +143,28 @@
            distribution: temurin
            java-version: ${{ env.JAVA_VERSION }}
            cache: gradle
@@ -87,7 +97,9 @@
        - name: Verify project Android configuration
          shell: bash
          run: |
-@@ -157,10 +161,8 @@
+           set -euo pipefail
+-          grep -q 'compileSdk = 36' app/build.gradle.kts
++          grep -q 'compileSdk = 37' app/build.gradle.kts
            grep -q 'targetSdk = 36' app/build.gradle.kts
            grep -q 'minSdk = 24' app/build.gradle.kts
            echo 'project Android SDK configuration: PASS'
@@ -101,22 +113,33 @@
        - name: Run Android instrumented tests
 --- a/app/build.gradle.kts
 +++ b/app/build.gradle.kts
-@@ -1,6 +1,5 @@
+@@ -1,12 +1,13 @@
  plugins {
      id("com.android.application")
 -    id("org.jetbrains.kotlin.android")
      id("org.jetbrains.kotlin.plugin.compose")
      id("com.google.devtools.ksp")
  }
-@@ -17,7 +16,6 @@
+ android {
+     namespace = "id.fajar.zahra"
+-    compileSdk = 36
++    // Compose 1.12.x / current AndroidX artifacts require API 37 for compilation.
++    // This is compile-time only; targetSdk remains 36 to preserve runtime behavior.
++    compileSdk = 37
+     defaultConfig {
+         applicationId = "id.fajar.zahra"
+         minSdk = 24
+@@ -17,9 +18,7 @@
      }
      buildFeatures { compose = true }
      compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
 -    kotlinOptions { jvmTarget = "17" }
      packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
-     sourceSets["main"].assets.srcDir("src/main/assets")
+-    sourceSets["main"].assets.srcDir("src/main/assets")
      defaultConfig { ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") } }
-@@ -32,6 +30,7 @@
+     androidResources { noCompress += listOf("pck", "zip") }
+ }
+@@ -32,6 +31,7 @@
      implementation("androidx.navigation:navigation-compose:2.10.2")
      implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
      implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
@@ -124,107 +147,3 @@
      implementation("androidx.room:room-runtime:2.8.5")
      implementation("androidx.room:room-ktx:2.8.5")
      ksp("androidx.room:room-compiler:2.8.5")
---- a/app/src/main/java/id/fajar/zahra/bridge/GameBridge.kt
-+++ b/app/src/main/java/id/fajar/zahra/bridge/GameBridge.kt
-@@ -61,7 +61,12 @@
-                 file.delete()
-                 continue
-             }
--            val json = runCatching { JSONObject(payload) }.getOrNull() ?: continue
-+            val json = runCatching { JSONObject(payload) }.getOrNull() ?: run {
-+                // Invalid signed payloads cannot ever become valid later. Drop them so
-+                // one corrupt event cannot permanently block the durable queue.
-+                file.delete()
-+                continue
-+            }
-             val version = json.optInt("version", 0)
-             val type = json.optString("type", "")
-             if (version != 1 || type.isBlank()) {
---- a/app/src/main/java/id/fajar/zahra/reminder/ReminderWorker.kt
-+++ b/app/src/main/java/id/fajar/zahra/reminder/ReminderWorker.kt
-@@ -1,6 +1,7 @@
- package id.fajar.zahra.reminder
- 
- import android.Manifest
-+import android.annotation.SuppressLint
- import android.app.PendingIntent
- import android.content.Context
- import android.content.Intent
-@@ -17,6 +18,7 @@
- import kotlinx.coroutines.flow.first
- 
- class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-+    @SuppressLint("MissingPermission")
-     override suspend fun doWork(): Result {
-         Notifications.createChannel(applicationContext)
-         val settings = SettingsStore(applicationContext)
---- a/app/src/test/java/id/fajar/zahra/backup/BackupContractTest.kt
-+++ b/app/src/test/java/id/fajar/zahra/backup/BackupContractTest.kt
-@@ -4,6 +4,6 @@
- import org.junit.Test
- 
- class BackupContractTest {
--    @Test fun currentSchemaIsFour() = assertEquals(4, BackupContract.CURRENT_SCHEMA)
-+    @Test fun currentSchemaIsFive() = assertEquals(5, BackupContract.CURRENT_SCHEMA)
-     @Test fun extensionIsStable() = assertEquals("zahra.backup", BackupContract.FILE_EXTENSION)
- }
---- a/build.gradle.kts
-+++ b/build.gradle.kts
-@@ -1,6 +1,5 @@
- plugins {
--    id("com.android.application") version "9.2.0" apply false
--    id("org.jetbrains.kotlin.android") version "2.4.20" apply false
--    id("org.jetbrains.kotlin.plugin.compose") version "2.4.20" apply false
-+    id("com.android.application") version "9.2.1" apply false
-+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false
-     id("com.google.devtools.ksp") version "2.3.12" apply false
- }
---- a/docs/CI_FIX_REPORT.md
-+++ b/docs/CI_FIX_REPORT.md
-@@ -0,0 +1,19 @@
-+# Zahra v0.13.0 CI/Build Fix Report
-+
-+This revision fixes the GitHub Actions SDK bootstrap failure and build blockers found during source audit.
-+
-+## Fixed
-+- Android SDK is initialized with `android-actions/setup-android@v4`, which installs/exports `sdkmanager`.
-+- AGP updated from 9.2.0 to 9.2.1.
-+- Migrated to AGP 9 built-in Kotlin by removing `org.jetbrains.kotlin.android`.
-+- Compose compiler plugin aligned to Kotlin/AGP 9.2 default KGP 2.2.10.
-+- Removed legacy `kotlinOptions` configuration.
-+- Added `androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0` for `viewModel()` used by `MainActivity`.
-+- Corrected `BackupContractTest` from schema 4 to the current schema 5.
-+- Suppressed the notification lint permission warning only after the runtime permission check in `ReminderWorker`.
-+- Prevented malformed signed bridge payloads from becoming a permanent poison-queue item.
-+- Gradle setup action updated to v6.
-+- Added CI/static guards for the SDK tool path, built-in Kotlin migration, ViewModel Compose dependency, and backup schema contract.
-+
-+## Verification
-+Static checks pass in the source tree. A full Android Gradle build could not be executed inside this container because no Gradle installation/cache is present and outbound dependency download is unavailable here; final compilation/testing must therefore run in GitHub Actions.
---- a/docs/STATIC_CHECKS.sh
-+++ b/docs/STATIC_CHECKS.sh
-@@ -12,9 +12,16 @@
- dao=Path("$A/data/Daos.kt").read_text()
- db=Path("$A/data/ZahraDatabase.kt").read_text()
- backup=Path("$A/backup/BackupRepository.kt").read_text()
-+contract_test=Path("$ROOT/app/src/test/java/id/fajar/zahra/backup/BackupContractTest.kt").read_text()
-+root_gradle=Path("$ROOT/build.gradle.kts").read_text()
- game=Path("$G").read_text()
- checks={
-  "api36": 'compileSdk = 36' in app and 'targetSdk = 36' in app,
-+ "agp9_builtin_kotlin": 'id("com.android.application") version "9.2.1" apply false' in root_gradle and 'org.jetbrains.kotlin.android' not in app and 'kotlinOptions' not in app,
-+ "compose_compiler_alignment": 'id("org.jetbrains.kotlin.plugin.compose") version "2.2.10" apply false' in root_gradle,
-+ "ksp_agp9": 'id("com.google.devtools.ksp") version "2.3.12" apply false' in root_gradle,
-+ "viewmodel_compose": 'androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0' in app and 'androidx.lifecycle.viewmodel.compose.viewModel' in main,
-+ "backup_schema_contract": 'currentSchemaIsFive' in contract_test and 'assertEquals(5, BackupContract.CURRENT_SCHEMA)' in contract_test,
-  "version": 'versionCode = 13' in app and 'versionName = "0.13.0"' in app,
-  "profile-success": 'onSuccess: () -> Unit = {}' in vm and 'vm.saveProfile(name, age) {' in main,
-  "mission-edit": 'fun updateMission(' in vm and 'suspend fun updateMission(' in repo and 'suspend fun update(m: MissionEntity)' in dao and 'fun MissionEditScreen(' in main,
-@@ -26,6 +33,7 @@
- assert all(checks.values())
- PY
- test -f "$ROOT/app/src/test/java/id/fajar/zahra/backup/PortableBackupCryptoTest.kt"
-+test -f "$ROOT/app/src/test/java/id/fajar/zahra/backup/BackupContractTest.kt"
- test -f "$ROOT/app/src/test/java/id/fajar/zahra/core/RewardGuardTest.kt"
- test -f "$ROOT/app/src/androidTest/java/id/fajar/zahra/bridge/BridgeSecurityInstrumentedTest.kt"
- test -f "$ROOT/app/src/androidTest/java/id/fajar/zahra/data/RewardIdempotencyInstrumentedTest.kt"

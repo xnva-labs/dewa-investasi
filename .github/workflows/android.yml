@@ -14,8 +14,10 @@ env:
   JAVA_VERSION: '17'
   # Must match this project's Android Gradle Plugin 9.2.x compatibility line.
   GRADLE_VERSION: '9.4.1'
-  # Source of truth: app/build.gradle.kts -> compileSdk/targetSdk = 36.
-  ANDROID_COMPILE_SDK: '36'
+  # Source of truth: app/build.gradle.kts -> compileSdk = 37, targetSdk = 36.
+  # compileSdk 37 is required by the current Compose/AndroidX dependencies;
+  # targetSdk intentionally stays at 36 to avoid changing runtime behavior.
+  ANDROID_COMPILE_SDK: '37'
   ANDROID_BUILD_TOOLS: '36.0.0'
   ANDROID_TEST_API: '36'
 
@@ -80,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'compileSdk = 36' app/build.gradle.kts
+          grep -q 'compileSdk = 37' app/build.gradle.kts
           grep -q 'targetSdk = 36' app/build.gradle.kts
           grep -q 'minSdk = 24' app/build.gradle.kts
           grep -q 'sourceCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
@@ -157,7 +159,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'compileSdk = 36' app/build.gradle.kts
+          grep -q 'compileSdk = 37' app/build.gradle.kts
           grep -q 'targetSdk = 36' app/build.gradle.kts
           grep -q 'minSdk = 24' app/build.gradle.kts
           echo 'project Android SDK configuration: PASS'

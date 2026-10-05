@@ -1,4 +1,9 @@
-api36 PASS
+api37_compile PASS
+agp9_builtin_kotlin PASS
+compose_compiler_alignment PASS
+ksp_agp9 PASS
+viewmodel_compose PASS
+backup_schema_contract PASS
 version PASS
 profile-success PASS
 mission-edit PASS

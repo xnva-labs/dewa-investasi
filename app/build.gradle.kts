@@ -5,7 +5,9 @@ plugins {
 }
 android {
     namespace = "id.fajar.zahra"
-    compileSdk = 36
+    // Compose 1.12.x / current AndroidX artifacts require API 37 for compilation.
+    // This is compile-time only; targetSdk remains 36 to preserve runtime behavior.
+    compileSdk = 37
     defaultConfig {
         applicationId = "id.fajar.zahra"
         minSdk = 24
@@ -17,7 +19,6 @@ android {
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
-    sourceSets["main"].assets.srcDir("src/main/assets")
     defaultConfig { ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") } }
     androidResources { noCompress += listOf("pck", "zip") }
 }
