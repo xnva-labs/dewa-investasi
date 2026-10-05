@@ -1,0 +1,169 @@
+name: Zahra Android CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+  JAVA_VERSION: '17'
+  # Must match this project's Android Gradle Plugin 9.2.0 compatibility line.
+  GRADLE_VERSION: '9.4.1'
+  # Source of truth: app/build.gradle.kts -> compileSdk/targetSdk = 36.
+  ANDROID_COMPILE_SDK: '36'
+  ANDROID_BUILD_TOOLS: '36.0.0'
+  ANDROID_TEST_API: '36'
+
+concurrency:
+  group: zahra-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Static audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Run project static checks
+        run: bash docs/STATIC_CHECKS.sh
+      - name: Run source audit
+        run: bash docs/SOURCE_AUDIT.sh
+      - name: Verify required tests and workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .github/workflows/android.yml
+          test -f app/src/test/java/id/fajar/zahra/core/RewardGuardTest.kt
+          test -f app/src/test/java/id/fajar/zahra/bridge/GameBridgeContractTest.kt
+          test -f app/src/androidTest/java/id/fajar/zahra/bridge/BridgeSecurityInstrumentedTest.kt
+          test -f app/src/androidTest/java/id/fajar/zahra/bridge/GameBridgeTransportInstrumentedTest.kt
+          test -f app/src/androidTest/java/id/fajar/zahra/data/RewardIdempotencyInstrumentedTest.kt
+          echo 'workflow/test inventory: PASS'
+
+  unit-and-build:
+    name: Unit tests + debug APK
+    runs-on: ubuntu-latest
+    needs: static
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Verify project Android configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'compileSdk = 36' app/build.gradle.kts
+          grep -q 'targetSdk = 36' app/build.gradle.kts
+          grep -q 'minSdk = 24' app/build.gradle.kts
+          grep -q 'sourceCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
+          grep -q 'targetCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
+          grep -q 'kotlinOptions.*jvmTarget = "17"' app/build.gradle.kts
+          grep -q 'org.godotengine:godot:4.7.2.stable' app/build.gradle.kts
+          grep -q 'config/features=PackedStringArray("4.7")' app/src/main/assets/project.godot
+          echo 'project configuration: PASS'
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+      - name: Unit tests
+        run: gradle --no-daemon testDebugUnitTest
+      - name: Lint
+        run: gradle --no-daemon lintDebug
+      - name: Assemble debug APK
+        run: gradle --no-daemon assembleDebug
+      - name: Verify APK exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          sha256sum "$APK" | tee app-debug.apk.sha256
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: zahra-debug-apk-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zahra-unit-reports-${{ github.sha }}
+          path: |
+            app/build/test-results/testDebugUnitTest/**
+            app/build/reports/tests/testDebugUnitTest/**
+            app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+          retention-days: 14
+
+  instrumented:
+    name: Instrumented Android tests
+    runs-on: ubuntu-latest
+    needs: unit-and-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Verify project Android configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'compileSdk = 36' app/build.gradle.kts
+          grep -q 'targetSdk = 36' app/build.gradle.kts
+          grep -q 'minSdk = 24' app/build.gradle.kts
+          echo 'project Android SDK configuration: PASS'
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "system-images;android-${ANDROID_TEST_API};google_apis;x86_64" "build-tools;${ANDROID_BUILD_TOOLS}"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+      - name: Run Android instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          script: gradle --no-daemon connectedDebugAndroidTest
+      - name: Upload instrumented reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zahra-instrumented-reports-${{ github.sha }}
+          path: |
+            app/build/outputs/androidTest-results/**
+            app/build/reports/androidTests/**
+          if-no-files-found: ignore
+          retention-days: 14
