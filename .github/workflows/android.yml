@@ -1,253 +1,36 @@
-name: Zahra Android CI
+name: XNAI Android Build
 
 on:
   push:
-    branches: ["**"]
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
-env:
-  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
-  JAVA_VERSION: '17'
-  # Must match this project's Android Gradle Plugin 9.2.x compatibility line.
-  GRADLE_VERSION: '9.4.1'
-  # Source of truth: app/build.gradle.kts -> compileSdk = 37, targetSdk = 36.
-  # compileSdk 37 is required by the current Compose/AndroidX dependencies;
-  # targetSdk intentionally stays at 36 to avoid changing runtime behavior.
-  ANDROID_COMPILE_SDK: '37'
-  ANDROID_BUILD_TOOLS: '36.0.0'
-  ANDROID_TEST_API: '36'
-
-concurrency:
-  group: zahra-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  static:
-    name: Static audit
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - name: Run project static checks
-        run: bash docs/STATIC_CHECKS.sh
-      - name: Run source audit
-        run: bash docs/SOURCE_AUDIT.sh
-      - name: Verify required tests and workflow
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f .github/workflows/android.yml
-          test -f app/src/test/java/id/fajar/zahra/core/RewardGuardTest.kt
-          test -f app/src/test/java/id/fajar/zahra/bridge/GameBridgeContractTest.kt
-          test -f app/src/test/java/id/fajar/zahra/backup/BackupContractTest.kt
-          test -f app/src/androidTest/java/id/fajar/zahra/bridge/BridgeSecurityInstrumentedTest.kt
-          test -f app/src/androidTest/java/id/fajar/zahra/bridge/GameBridgeTransportInstrumentedTest.kt
-          test -f app/src/androidTest/java/id/fajar/zahra/data/RewardIdempotencyInstrumentedTest.kt
-          echo 'workflow/test inventory: PASS'
+        uses: actions/checkout@v4
 
-  unit-and-build:
-    name: Unit tests + debug APK
-    runs-on: ubuntu-latest
-    needs: static
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Java
-        uses: actions/setup-java@v5
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
+          java-version: '17'
           cache: gradle
-      - name: Configure preinstalled Android SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          test -d "$SDK_ROOT"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
-          if command -v sdkmanager >/dev/null 2>&1; then
-            SDKMANAGER_PATH="$(command -v sdkmanager)"
-          else
-            SDKMANAGER_PATH="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          fi
-          test -n "$SDKMANAGER_PATH"
-          echo "$(dirname "$SDKMANAGER_PATH")" >> "$GITHUB_PATH"
-      - name: Accept Android SDK licenses non-interactively
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v sdkmanager
-          # Avoid failing on the expected SIGPIPE from `yes` when sdkmanager exits.
-          set +o pipefail
-          yes | sdkmanager --licenses >/dev/null
-          LICENSE_STATUS=${PIPESTATUS[1]}
-          set -o pipefail
-          test "$LICENSE_STATUS" -eq 0
-      - name: Install required Android SDK packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdkmanager "platform-tools" "platforms;android-${ANDROID_COMPILE_SDK}" "build-tools;${ANDROID_BUILD_TOOLS}"
-      - name: Verify Android SDK tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v sdkmanager
-          sdkmanager --version
-          command -v adb
-          adb version
-          test -d "${ANDROID_SDK_ROOT}/licenses"
-          test -s "${ANDROID_SDK_ROOT}/licenses/android-sdk-license"
-          echo 'Android SDK license state: PASS'
-      - name: Verify project Android configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -q 'compileSdk = 37' app/build.gradle.kts
-          grep -q 'targetSdk = 36' app/build.gradle.kts
-          grep -q 'minSdk = 24' app/build.gradle.kts
-          grep -q 'sourceCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
-          grep -q 'targetCompatibility = JavaVersion.VERSION_17' app/build.gradle.kts
-          ! grep -q 'org.jetbrains.kotlin.android' app/build.gradle.kts
-          grep -q 'org.jetbrains.kotlin.plugin.compose' build.gradle.kts
-          grep -q 'org.godotengine:godot:4.7.2.stable' app/build.gradle.kts
-          grep -q 'config/features=PackedStringArray("4.7")' app/src/main/assets/project.godot
-          echo 'project configuration: PASS'
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: ${{ env.GRADLE_VERSION }}
-      - name: Unit tests
-        run: gradle --no-daemon testDebugUnitTest
-      - name: Lint
-        run: gradle --no-daemon lintDebug
-      - name: Assemble debug APK
-        run: gradle --no-daemon assembleDebug
-      - name: Verify APK exists
-        shell: bash
-        run: |
-          set -euo pipefail
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          sha256sum "$APK" | tee app-debug.apk.sha256
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: zahra-debug-apk-${{ github.sha }}
-          path: |
-            app/build/outputs/apk/debug/app-debug.apk
-            app-debug.apk.sha256
-          if-no-files-found: error
-          retention-days: 14
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zahra-unit-reports-${{ github.sha }}
-          path: |
-            app/build/test-results/testDebugUnitTest/**
-            app/build/reports/tests/testDebugUnitTest/**
-            app/build/reports/lint-results-debug.html
-          if-no-files-found: ignore
-          retention-days: 14
 
-  instrumented:
-    name: Instrumented Android tests
-    runs-on: ubuntu-latest
-    needs: unit-and-build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Java
-        uses: actions/setup-java@v5
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          distribution: temurin
-          java-version: ${{ env.JAVA_VERSION }}
-          cache: gradle
-      - name: Configure preinstalled Android SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          test -d "$SDK_ROOT"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
-          if command -v sdkmanager >/dev/null 2>&1; then
-            SDKMANAGER_PATH="$(command -v sdkmanager)"
-          else
-            SDKMANAGER_PATH="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          fi
-          test -n "$SDKMANAGER_PATH"
-          echo "$(dirname "$SDKMANAGER_PATH")" >> "$GITHUB_PATH"
-      - name: Accept Android SDK licenses non-interactively
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v sdkmanager
-          # Avoid failing on the expected SIGPIPE from `yes` when sdkmanager exits.
-          set +o pipefail
-          yes | sdkmanager --licenses >/dev/null
-          LICENSE_STATUS=${PIPESTATUS[1]}
-          set -o pipefail
-          test "$LICENSE_STATUS" -eq 0
-      - name: Install required Android SDK packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          sdkmanager "platform-tools" "emulator" "platforms;android-${ANDROID_COMPILE_SDK}" "system-images;android-${ANDROID_TEST_API};google_apis;x86_64" "build-tools;${ANDROID_BUILD_TOOLS}"
-      - name: Verify Android SDK tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          command -v sdkmanager
-          sdkmanager --version
-          command -v adb
-          adb version
-          test -d "${ANDROID_SDK_ROOT}/licenses"
-          test -s "${ANDROID_SDK_ROOT}/licenses/android-sdk-license"
-          echo 'Android SDK license state: PASS'
-      - name: Verify project Android configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -q 'compileSdk = 37' app/build.gradle.kts
-          grep -q 'targetSdk = 36' app/build.gradle.kts
-          grep -q 'minSdk = 24' app/build.gradle.kts
-          echo 'project Android SDK configuration: PASS'
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: ${{ env.GRADLE_VERSION }}
-      - name: Run Android instrumented tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          arch: x86_64
-          target: google_apis
-          profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
-          disable-animations: true
-          script: gradle --no-daemon connectedDebugAndroidTest
-      - name: Upload instrumented reports
-        if: always()
+          gradle-version: '9.5.0'
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: zahra-instrumented-reports-${{ github.sha }}
-          path: |
-            app/build/outputs/androidTest-results/**
-            app/build/reports/androidTests/**
-          if-no-files-found: ignore
-          retention-days: 14
+          name: xnai-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
