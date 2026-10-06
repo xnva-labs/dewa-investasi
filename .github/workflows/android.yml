@@ -1,29 +1,36 @@
-name: Android CI
+name: XNAI Android Build
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "9.4.1"
-      - name: Unit test dan build APK debug
-        run: gradle testDebugUnitTest assembleDebug --stacktrace
-      - uses: actions/upload-artifact@v4
-        if: always()
+          gradle-version: '9.5.0'
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          name: zahra-debug-apk-dan-laporan
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/reports/tests/testDebugUnitTest/
+          name: xnai-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
