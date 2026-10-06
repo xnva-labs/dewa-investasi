@@ -1,0 +1,8 @@
+api36 PASS
+version PASS
+profile-success PASS
+mission-edit PASS
+schedule-parse PASS
+backup PASS
+game PASS
+static checks: PASS
