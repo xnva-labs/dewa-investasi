@@ -78,4 +78,19 @@ class AssistantCommandParserTest {
         assertEquals(3, TextMatch.levenshtein("kitten", "sitting"))
         assertEquals("dek zaa", TextMatch.norm("Dek Zaa!"))
     }
+
+    @Test fun confirmationNeedsAShortClearAnswer() {
+        val yes = AssistantCommandParser.Confirmation.YES
+        val no = AssistantCommandParser.Confirmation.NO
+        assertEquals(yes, AssistantCommandParser.confirmation("iya"))
+        assertEquals(yes, AssistantCommandParser.confirmation("Ya, kirim aja"))
+        assertEquals(yes, AssistantCommandParser.confirmation("oke deh"))
+        assertEquals(no, AssistantCommandParser.confirmation("batal"))
+        assertEquals(no, AssistantCommandParser.confirmation("iya jangan"))
+        assertEquals(no, AssistantCommandParser.confirmation("bukan, salah"))
+        assertNull(AssistantCommandParser.confirmation("ya ampun"))
+        assertNull(AssistantCommandParser.confirmation("halo apa kabar"))
+        assertNull(AssistantCommandParser.confirmation("iya aku lagi di jalan sekarang ya"))
+        assertNull(AssistantCommandParser.confirmation(""))
+    }
 }

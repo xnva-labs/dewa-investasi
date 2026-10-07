@@ -68,11 +68,13 @@ object CompanionRepository {
         return "mode=$mode; warmth=${p.warmth}; verbosity=${p.verbosity}; expression=${p.emotionalExpression}; state=${e.state.name.lowercase()}; intensity=${"%.2f".format(e.intensity)}"
     }
 
+    /** Soul first and style second, so truncation can only ever cut the optional user summary at the end. */
     fun companionContext(): String = buildString {
-        append("Companion style: ").append(responseStyle())
-        val model = if (PrivacyRepository.settings.value.memoryEnabled) UserModelRepository.contextSummary() else ""
-        if (model.isNotBlank()) append(" | ").append(model)
+        append(SoulPrompt.TEXT)
+        append("\n\nCompanion style: ").append(responseStyle())
         append(" | Boundaries: do not claim consciousness, do not manipulate dependency, respect privacy and user autonomy.")
+        val model = if (PrivacyRepository.settings.value.memoryEnabled) UserModelRepository.contextSummary() else ""
+        if (model.isNotBlank()) append("\n\nUser model: ").append(model)
     }.take(5000)
 
     fun clearPersonalization(): Boolean = clearPersonalizationSynchronously()

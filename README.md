@@ -43,7 +43,7 @@ The app rejects non-HTTPS cloud endpoints and does not embed API secrets in the 
 
 For release, the GitHub Actions workflow expects repository secrets `XNAI_BASE_URL`, `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`.
 
-A reference implementation of these endpoints (Node, tests, Dockerfile, Cloud Run steps) is in `backend/`; see `backend/README.md`.
+The XNAI backend is a separate project and is not part of this repository.
 
 ## Privacy publication
 The in-app privacy disclosure mirrors the current controls, but a public privacy-policy webpage must also be hosted by XNVA (a ready draft is in `docs/privacy-policy.html`; fill the highlighted placeholders, then host it, for example with GitHub Pages from `/docs`) and supplied to Google Play before publication. The Play Console Data Safety declaration must match the app's actual data practices.

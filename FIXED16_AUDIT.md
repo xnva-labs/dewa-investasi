@@ -1,3 +1,5 @@
+> Note: the `backend/` folder described below was removed in Fixed18 (XNAI becomes a separate project).
+
 # SmartEyeX Fixed16
 
 Baseline: `smarteyex-production-root-fixed15.zip` (fixed15 fixed the 7 `NonObservableLocale` lint errors and several UI/runtime bugs; see `FIXED15_AUDIT.md`).

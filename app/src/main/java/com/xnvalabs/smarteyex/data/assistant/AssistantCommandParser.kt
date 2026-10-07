@@ -17,6 +17,8 @@ object AssistantCommandParser {
 
     data class ReplySplit(val sender: String, val message: String)
 
+    enum class Confirmation { YES, NO }
+
     private val SPACES = Regex("\\s+")
     private val WAKE_TARGETS = listOf("smarteyex", "smarteyes")
     private val GREETINGS = setOf("hai", "halo", "hallo", "hey", "hei", "ok", "oke", "okay")
@@ -29,6 +31,9 @@ object AssistantCommandParser {
     private val APP_FILLERS = setOf("aplikasi", "aplikasinya", "apk", "app", "dong", "ya")
     private val REPLY_VERBS = setOf("jawab", "balas")
     private val READ_VERBS = setOf("bacakan", "bacain", "baca")
+    private val YES_WORDS = setOf("iya", "ya", "yes", "kirim", "oke", "ok", "okay", "betul", "bener", "benar", "lanjut", "gas", "sip", "boleh")
+    private val YES_FILLERS = YES_WORDS + setOf("aja", "dong", "deh", "banget", "kok", "sih")
+    private val NO_WORDS = setOf("batal", "jangan", "nggak", "ngga", "gak", "tidak", "enggak", "stop", "salah", "bukan", "cancel", "tunggu")
 
     /**
      * Returns the text after the wake word (possibly empty), or null when the wake word is absent.
@@ -81,6 +86,18 @@ object AssistantCommandParser {
             verb in READ_VERBS && (normalized.contains("notif") || normalized.contains("pesan")) -> return Command.ReadNotifications
         }
         return Command.Ask(tokens.joinToString(" "))
+    }
+
+    /**
+     * Answer to "Kirim?". Only short, unambiguous replies count; any refusal word wins over a yes word,
+     * and longer sentences are treated as ordinary chatter (null) instead of a confirmation.
+     */
+    fun confirmation(text: String): Confirmation? {
+        val words = TextMatch.norm(text).split(' ').filter { it.isNotEmpty() }
+        if (words.isEmpty() || words.size > 4) return null
+        if (words.any { it in NO_WORDS }) return Confirmation.NO
+        if (words.all { it in YES_FILLERS } && words.any { it in YES_WORDS }) return Confirmation.YES
+        return null
     }
 
     /** "jawab dek zaa ..." spoken without the wake word. Returns the part after the verb, else null. */

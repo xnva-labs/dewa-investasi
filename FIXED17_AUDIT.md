@@ -1,3 +1,5 @@
+> Note: the `backend/` folder described below was removed in Fixed18 (XNAI becomes a separate project).
+
 # SmartEyeX Fixed17: Mic Live (always-on voice)
 
 Baseline: fixed16 (`FIXED15_AUDIT.md`, `FIXED16_AUDIT.md`). Version 0.4.0 (versionCode 6).

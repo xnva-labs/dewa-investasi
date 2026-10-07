@@ -55,7 +55,7 @@
   <table>
     <thead><tr><th>Data</th><th>Kapan dipakai</th><th>Ke mana</th></tr></thead>
     <tbody>
-      <tr><td>Foto dari kamera</td><td>Hanya saat kamu mengetuk &ldquo;Ambil &amp; Analisis&rdquo;, dengan Camera dan Cloud Processing aktif.</td><td>Dikirim lewat HTTPS ke server XNAI, lalu diteruskan ke penyedia model AI untuk dianalisis. Tidak disimpan di perangkat.</td></tr>
+      <tr><td>Foto dari kamera</td><td>Hanya saat kamu mengetuk &ldquo;Ambil &amp; Analisis&rdquo;, dengan Camera dan Cloud Processing aktif.</td><td>Dikirim lewat HTTPS ke server XNAI untuk dianalisis. Tidak disimpan di perangkat.</td></tr>
       <tr><td>Suara</td><td>Saat kamu menekan tombol mic, dengan Microphone aktif.</td><td>Dikenali oleh layanan pengenalan suara bawaan Android, yang dapat memprosesnya di perangkat atau di server penyedianya sesuai pengaturan perangkatmu. Audio mentah tidak disimpan SmartEyeX.</td></tr>
       <tr><td>Mic selalu aktif (opsional)</td><td>Hanya setelah kamu menyalakannya sendiri di layar XNAI dan menyetujui pemberitahuannya. Berjalan dengan notifikasi permanen sampai kamu mematikannya.</td><td>Suara dikenali terus-menerus oleh layanan pengenalan suara bawaan Android, yang dapat memprosesnya di server penyedianya. SmartEyeX hanya memakai ucapan yang diawali kata panggil &ldquo;SmartEyeX&rdquo; (atau &ldquo;jawab &lt;nama&gt;&rdquo; tepat setelah pesan dari orang itu masuk) dan langsung membuang sisanya. Tidak ada audio atau transkrip ambient yang disimpan.</td></tr>
       <tr><td>Statistik gaya bicara</td><td>Hanya jika Voice Personalization aktif.</td><td>Rata-rata tingkat energi dan tempo bicara disimpan di perangkat untuk menyesuaikan suara balasan. Bukan rekaman, bukan sidik suara.</td></tr>
@@ -74,13 +74,13 @@
 
   <h2>Pihak ketiga</h2>
   <ul>
-    <li><strong>Penyedia model AI.</strong> Server XNAI meneruskan pesan, teks terjemahan, dan foto ke Anthropic (API Claude) untuk menghasilkan jawaban. Penyedia ini memproses data sesuai kebijakannya sendiri. <mark>[Perbarui bagian ini jika penyedia diganti.]</mark></li>
+    <li><strong>Penyedia model AI.</strong> <mark>[ISI: sebutkan penyedia model AI yang dipakai server XNAI, atau hapus poin ini]</mark></li>
     <li><strong>Layanan Android.</strong> Pengenalan suara, suara balasan (text-to-speech), dan aplikasi peta dijalankan oleh komponen sistem atau aplikasi lain di perangkatmu.</li>
     <li>SmartEyeX tidak memuat SDK iklan, analitik, atau pelacakan.</li>
   </ul>
 
   <h2>Apa yang dilakukan server XNAI</h2>
-  <p>Server hanya meneruskan permintaanmu ke penyedia model AI dan mengembalikan hasilnya. Server tidak menyimpan isi pesan, foto, atau hasil di basis data. Jawaban disimpan sementara di memori sekitar 5 menit agar percobaan ulang tidak diproses dua kali, lalu hilang. Log teknis hanya berisi metode, alamat endpoint, status, dan durasi, tanpa isi. Alamat IP dipakai sebentar di memori untuk membatasi penyalahgunaan; penyedia hosting dapat mencatat metadata jaringan standar.</p>
+  <p>Fitur cloud (chat XNAI, analisis kamera, terjemahan, rencana belajar) mengirim data ke server XNAI lewat HTTPS, dan hanya setelah Cloud Processing kamu aktifkan. <mark>[ISI: jelaskan apa yang dilakukan server XNAI yang kamu pakai: apakah isi pesan, foto, atau hasil disimpan, berapa lama, apa yang dicatat di log, dan siapa penyedia hosting serta model AI-nya.]</mark></p>
 
   <h2>Kendalimu</h2>
   <ul>

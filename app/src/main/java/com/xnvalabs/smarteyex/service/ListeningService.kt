@@ -38,6 +38,7 @@ import com.xnvalabs.smarteyex.data.assistant.AssistantCommandParser.Command
 import com.xnvalabs.smarteyex.data.assistant.LaunchableApp
 import com.xnvalabs.smarteyex.data.companion.CompanionRepository
 import com.xnvalabs.smarteyex.data.notifications.NotificationRepository
+import com.xnvalabs.smarteyex.data.notifications.SenderReply
 import com.xnvalabs.smarteyex.data.privacy.PrivacyRepository
 import com.xnvalabs.smarteyex.data.xnai.XnaiMessage
 import com.xnvalabs.smarteyex.data.xnai.XnaiRepository
@@ -53,10 +54,13 @@ import java.util.Locale
  * shows its permanent notification and mic indicator; this cannot and should not be hidden.
  *
  * Only speech that starts with the wake word ("SmartEyeX ...") is acted on. The one exception is
- * "jawab <nama> <isi>" right after a message arrived from that sender. Everything else is dropped
+ * "jawab <nama> <isi>" right after a message arrived from that sender; it never sends on its own:
+ * SmartEyeX reads the message back and waits for "iya" or "batal". Everything else is dropped
  * immediately and never stored. Stop it from the notification button, the XNAI screen, or by
  * saying "SmartEyeX matikan mic".
  */
+private data class PendingReply(val target: SenderReply, val message: String)
+
 class ListeningService : Service(), RecognitionListener {
     private val main = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -75,6 +79,8 @@ class ListeningService : Service(), RecognitionListener {
     private var stopAfterSpeech = false
     private var armedUntil = 0L
     private var failures = 0
+    private var pendingReply: PendingReply? = null
+    private var pendingUntil = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -128,6 +134,7 @@ class ListeningService : Service(), RecognitionListener {
         running = false
         ListeningState.active.value = false
         NotificationRepository.incomingListener = null
+        pendingReply = null
         main.removeCallbacksAndMessages(null)
         runCatching { recognizer?.destroy() }
         recognizer = null
@@ -223,6 +230,33 @@ class ListeningService : Service(), RecognitionListener {
     private fun handleUtterance(raw: String) {
         val text = raw.trim()
         if (text.isEmpty()) return
+
+        // A reply is waiting for "iya" / "batal". Short answers resolve it, a new wake-word command cancels it,
+        // and other chatter is ignored until the window closes.
+        val pending = pendingReply
+        if (pending != null) {
+            if (SystemClock.elapsedRealtime() > pendingUntil) {
+                pendingReply = null
+            } else {
+                when (AssistantCommandParser.confirmation(text)) {
+                    AssistantCommandParser.Confirmation.YES -> {
+                        pendingReply = null
+                        sendPending(pending)
+                        return
+                    }
+                    AssistantCommandParser.Confirmation.NO -> {
+                        pendingReply = null
+                        enqueueSpeech("Oke, nggak jadi dikirim.")
+                        return
+                    }
+                    null -> {
+                        if (AssistantCommandParser.stripWakeWord(text) == null) return
+                        pendingReply = null
+                    }
+                }
+            }
+        }
+
         val afterWake = AssistantCommandParser.stripWakeWord(text)
         val armed = SystemClock.elapsedRealtime() < armedUntil
         val command = when {
@@ -258,6 +292,8 @@ class ListeningService : Service(), RecognitionListener {
 
     private fun onIncoming(app: String, sender: String, body: String, @Suppress("UNUSED_PARAMETER") canReply: Boolean) {
         if (!running) return
+        // Silent mode: stay quiet (the message still shows in the notification feed).
+        if (NotificationRepository.loadPreferences().notificationMode == NotificationRepository.MODE_SILENT) return
         val who = if (sender.equals(app, ignoreCase = true)) app else "$app dari $sender"
         // Replyable messages are remembered per sender by NotificationRepository ("jawab <nama> ...").
         enqueueSpeech("$who: $body")
@@ -280,9 +316,16 @@ class ListeningService : Service(), RecognitionListener {
             return
         }
         val target = candidates.firstOrNull { it.sender == split.sender } ?: return
-        NotificationRepository.sendReplyToSender(this, target, split.message)
-            .onSuccess { enqueueSpeech("Terkirim ke ${target.sender}: ${split.message.take(120)}") }
-            .onFailure { enqueueSpeech("Gagal mengirim ke ${target.sender}.") }
+        // Never send on a single hearing: speech recognition can be wrong and a sent message cannot be recalled.
+        pendingReply = PendingReply(target, split.message)
+        pendingUntil = SystemClock.elapsedRealtime() + CONFIRM_WINDOW_MS
+        enqueueSpeech("Gue tangkepnya gini untuk ${target.sender}: ${split.message.take(160)}. Kirim?")
+    }
+
+    private fun sendPending(pending: PendingReply) {
+        NotificationRepository.sendReplyToSender(this, pending.target, pending.message)
+            .onSuccess { enqueueSpeech("Terkirim ke ${pending.target.sender}.") }
+            .onFailure { enqueueSpeech("Gagal mengirim ke ${pending.target.sender}.") }
     }
 
     private fun readNotifications() {
@@ -474,6 +517,7 @@ class ListeningService : Service(), RecognitionListener {
         private const val RECOGNITION_LANGUAGE = "id-ID"
         private const val ARM_WINDOW_MS = 15_000L
         private const val REPLY_WINDOW_MS = 2 * 60_000L
+        private const val CONFIRM_WINDOW_MS = 20_000L
         private const val WAKE_LOCK_MS = 10 * 60_000L
         private const val MAX_HISTORY = 20
         private const val MAX_SPOKEN_CHARS = 700
