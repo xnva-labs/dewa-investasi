@@ -1,14 +1,19 @@
-*.iml
+# Gradle / Android
 .gradle/
-/local.properties
-/.idea/
-.DS_Store
-/build/
-/app/build/
-/captures
-.externalNativeBuild
-.cxx
+build/
+*.iml
+.idea/
+local.properties
+captures/
+.cxx/
+.externalNativeBuild/
 *.apk
 *.aab
-keystore.properties
 *.jks
+*.keystore
+# Godot (bila proyek game dibuka di editor Godot)
+app/src/main/assets/.godot/
+app/src/main/assets/export_presets.cfg
+# OS
+.DS_Store
+Thumbs.db

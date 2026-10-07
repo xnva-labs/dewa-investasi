@@ -1,4 +1,13 @@
-# SmartEyeX currently has no reflection-based JSON/model framework that requires
-# broad keep rules. Android manifest components and their references are handled
-# by the Android Gradle Plugin/R8. Keep this file intentionally minimal so
-# release shrinking can remove unused code and resources.
+# Zahra release shrinker rules.
+# Godot bridge is loaded by class name from Android metadata/reflection.
+-keep class id.fajar.zahra.bridge.ZahraGodotPlugin { *; }
+-keep class id.fajar.zahra.GameActivity { *; }
+
+# Bridge contract / serialization entry points.
+-keep class id.fajar.zahra.bridge.** { *; }
+
+# Preserve worker/receiver lifecycle classes referenced by Android framework.
+-keep class id.fajar.zahra.reminder.** { *; }
+
+# Keep Room's generated database implementation and schema metadata safe.
+-keep class id.fajar.zahra.data.** { *; }

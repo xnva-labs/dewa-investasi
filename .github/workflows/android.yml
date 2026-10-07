@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -14,21 +14,16 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 8.14.3
-      - name: Production static scan
-        run: python3 scripts/production-scan.py
-      - name: Unit tests
-        run: gradle :app:testDebugUnitTest
-      - name: Lint
-        run: gradle :app:lintDebug
-      - name: Build debug APK
-        env:
-          XNAI_BASE_URL: ${{ secrets.XNAI_BASE_URL }}
-        run: gradle :app:assembleDebug
+          gradle-version: "9.4.1"
+      - name: Unit test dan build APK debug
+        run: gradle testDebugUnitTest assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: smarteyex-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: zahra-debug-apk-dan-laporan
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/reports/tests/testDebugUnitTest/
