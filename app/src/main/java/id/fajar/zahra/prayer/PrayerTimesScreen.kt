@@ -6,6 +6,9 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +40,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import id.fajar.zahra.prayer.PrayerAlarmWorker.Companion.cancel
 import id.fajar.zahra.prayer.PrayerAlarmWorker.Companion.schedule
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+private val android.content.Context.prayerReminderStore by preferencesDataStore(name = "zahra_prayer_reminders")
+private val prayerReminderEnabledKey = booleanPreferencesKey("obligatory_prayer_enabled")
+private val fastingReminderEnabledKey = booleanPreferencesKey("fasting_alarm_enabled")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +68,14 @@ fun PrayerTimesScreen() {
             busy = false
         }
     }
-    LaunchedEffect(Unit) { refresh() }
+    LaunchedEffect(Unit) {
+        // Keep the user's choices when the screen is reopened or the process is recreated.
+        runCatching { context.prayerReminderStore.data.first() }.onSuccess { preferences ->
+            prayerReminders = preferences[prayerReminderEnabledKey] ?: true
+            fastingReminders = preferences[fastingReminderEnabledKey] ?: false
+        }
+        refresh()
+    }
     Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text("Waktu Sholat") }) }) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
@@ -88,11 +103,17 @@ fun PrayerTimesScreen() {
                         Text("Pengingat suara lembut", style = MaterialTheme.typography.titleMedium)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(Modifier.weight(1f)) { Text("Sholat wajib"); Text("Subuh, Dzuhur, Ashar, Maghrib, Isya", style = MaterialTheme.typography.bodySmall) }
-                            Switch(checked = prayerReminders, onCheckedChange = { prayerReminders = it })
+                            Switch(checked = prayerReminders, onCheckedChange = { enabled ->
+                                prayerReminders = enabled
+                                scope.launch { context.prayerReminderStore.edit { it[prayerReminderEnabledKey] = enabled } }
+                            })
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(Modifier.weight(1f)) { Text("Alarm puasa"); Text("Pengingat sahur/imsak dan berbuka saat Maghrib", style = MaterialTheme.typography.bodySmall) }
-                            Switch(checked = fastingReminders, onCheckedChange = { fastingReminders = it })
+                            Switch(checked = fastingReminders, onCheckedChange = { enabled ->
+                                fastingReminders = enabled
+                                scope.launch { context.prayerReminderStore.edit { it[fastingReminderEnabledKey] = enabled } }
+                            })
                         }
                         Button(onClick = {
                             if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS); return@Button }
@@ -102,16 +123,19 @@ fun PrayerTimesScreen() {
                             val prayerIds = listOf("Waktu sholat Subuh", "Waktu sholat Dzuhur", "Waktu sholat Ashar", "Waktu sholat Maghrib", "Waktu sholat Isya")
                             if (!prayerReminders) prayerIds.forEach { cancel(context, "cirebon-$it".hashCode()) }
                             if (!fastingReminders) listOf("Alarm sahur", "Waktunya berbuka").forEach { cancel(context, "cirebon-$it".hashCode()) }
-                            fun addReminder(name: String, time: String, original: Long, body: String, leadMinutes: Int = 0) {
+                            fun addReminder(name: String, key: String, time: String, original: Long, body: String, leadMinutes: Int = 0) {
                                 val alarmTime = original - leadMinutes * 60_000L
                                 val adjustedTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("Asia/Jakarta") }.format(java.util.Date(alarmTime))
                                 val at = if (alarmTime > System.currentTimeMillis()) alarmTime else alarmTime + 24L * 60L * 60L * 1000L
-                                schedule(context, ("cirebon-$name".hashCode()), name, body, adjustedTime, at); count++
+                                schedule(context, ("cirebon-$name".hashCode()), name, body, adjustedTime, at, key, leadMinutes); count++
                             }
-                            if (prayerReminders) scheduleDay.prayers.forEach { addReminder("Waktu sholat ${it.name}", it.time, it.epochMillis, "Waktunya sholat. Semoga ibadahmu dimudahkan.") }
+                            if (prayerReminders) scheduleDay.prayers.forEach { prayer ->
+                                val key = when (prayer.name) { "Subuh" -> "fajr"; "Dzuhur" -> "dhuhr"; "Ashar" -> "asr"; "Maghrib" -> "maghrib"; else -> "isha" }
+                                addReminder("Waktu sholat ${prayer.name}", key, prayer.time, prayer.epochMillis, "Waktunya sholat. Semoga ibadahmu dimudahkan.")
+                            }
                             if (fastingReminders) {
-                                addReminder("Alarm sahur", scheduleDay.imsak.time, scheduleDay.imsak.epochMillis, "Sebentar lagi imsak. Semoga puasamu dimudahkan.", leadMinutes = 30)
-                                addReminder("Waktunya berbuka", scheduleDay.maghrib.time, scheduleDay.maghrib.epochMillis, "Waktunya berbuka puasa. Alhamdulillah, semoga berkah.")
+                                addReminder("Alarm sahur", "imsak", scheduleDay.imsak.time, scheduleDay.imsak.epochMillis, "Sebentar lagi imsak. Semoga puasamu dimudahkan.", leadMinutes = 30)
+                                addReminder("Waktunya berbuka", "maghrib", scheduleDay.maghrib.time, scheduleDay.maghrib.epochMillis, "Waktunya berbuka puasa. Alhamdulillah, semoga berkah.")
                             }
                             status = if (count == 0) "Pilih minimal satu jenis pengingat." else "$count pengingat diaktifkan. Pengiriman bisa sedikit terlambat karena optimasi baterai Android."
                         }, modifier = Modifier.fillMaxWidth()) { Text("Simpan pengingat") }

@@ -31,13 +31,33 @@ class PrayerAlarmWorker(context: Context, params: WorkerParameters) : CoroutineW
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle(title).setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT).setAutoCancel(true).setContentIntent(pending).build()
         NotificationManagerCompat.from(applicationContext).notify(id, notification)
-        // Reschedule this named reminder for tomorrow using the same local wall-clock time.
-        val hhmm = inputData.getString("time")
-        if (!hhmm.isNullOrBlank()) {
-            val parts = hhmm.split(":")
-            if (parts.size == 2) {
-                val next = Calendar.getInstance(TimeZone.getTimeZone("Asia/Jakarta")).apply { add(Calendar.DAY_OF_YEAR, 1); set(Calendar.HOUR_OF_DAY, parts[0].toInt()); set(Calendar.MINUTE, parts[1].toInt()); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
-                schedule(applicationContext, id, title, body, hhmm, next)
+        // Fetch tomorrow's actual timetable after firing; don't reuse today's prayer time.
+        val reminderKey = inputData.getString("reminderKey")
+        if (!reminderKey.isNullOrBlank()) {
+            runCatching {
+                val tomorrow = PrayerTimesRepository.fetchCirebon(dayOffset = 1)
+                val target = when (reminderKey) {
+                    "fajr" -> tomorrow.prayers.first { it.name == "Subuh" }
+                    "dhuhr" -> tomorrow.prayers.first { it.name == "Dzuhur" }
+                    "asr" -> tomorrow.prayers.first { it.name == "Ashar" }
+                    "maghrib" -> tomorrow.prayers.first { it.name == "Maghrib" }
+                    "isha" -> tomorrow.prayers.first { it.name == "Isya" }
+                    "imsak" -> tomorrow.imsak
+                    else -> null
+                }
+                if (target != null) {
+                    val leadMinutes = inputData.getInt("leadMinutes", 0)
+                    val at = target.epochMillis - leadMinutes * 60_000L
+                    schedule(applicationContext, id, title, body, target.time, at, reminderKey, leadMinutes)
+                }
+            }.onFailure {
+                // Network outage fallback: keep the reminder alive at the previous wall-clock time.
+                val hhmm = inputData.getString("time")
+                val parts = hhmm?.split(":")
+                if (parts?.size == 2) {
+                    val next = Calendar.getInstance(TimeZone.getTimeZone("Asia/Jakarta")).apply { add(Calendar.DAY_OF_YEAR, 1); set(Calendar.HOUR_OF_DAY, parts[0].toInt()); set(Calendar.MINUTE, parts[1].toInt()); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+                    schedule(applicationContext, id, title, body, hhmm, next, reminderKey, inputData.getInt("leadMinutes", 0))
+                }
             }
         }
         return Result.success()
@@ -46,9 +66,9 @@ class PrayerAlarmWorker(context: Context, params: WorkerParameters) : CoroutineW
         fun cancel(context: Context, id: Int) {
             WorkManager.getInstance(context).cancelUniqueWork("prayer-alarm-$id")
         }
-        fun schedule(context: Context, id: Int, title: String, body: String, time: String, epoch: Long) {
+        fun schedule(context: Context, id: Int, title: String, body: String, time: String, epoch: Long, reminderKey: String = "", leadMinutes: Int = 0) {
             val delay = (epoch - System.currentTimeMillis()).coerceAtLeast(TimeUnit.MINUTES.toMillis(1))
-            val data = androidx.work.Data.Builder().putInt("notificationId", id).putString("title", title).putString("body", body).putString("time", time).build()
+            val data = androidx.work.Data.Builder().putInt("notificationId", id).putString("title", title).putString("body", body).putString("time", time).putString("reminderKey", reminderKey).putInt("leadMinutes", leadMinutes).build()
             val request = OneTimeWorkRequestBuilder<PrayerAlarmWorker>().setInputData(data).setInitialDelay(delay, TimeUnit.MILLISECONDS).build()
             WorkManager.getInstance(context).enqueueUniqueWork("prayer-alarm-$id", androidx.work.ExistingWorkPolicy.REPLACE, request)
         }

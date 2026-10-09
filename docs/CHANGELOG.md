@@ -107,3 +107,9 @@ Infrastruktur
 - Add calm launcher icon centered on the letter Z.
 - Make Cirebon prayer-time epoch parsing and daily reminder rescheduling explicitly use Asia/Jakarta, independent of device timezone settings.
 - Raise Android versionCode to 20 and versionName to 0.18.2.
+
+
+## v0.18.4
+- Encrypt personal note text using AES-GCM with an Android Keystore-managed key; legacy plaintext remains readable and is encrypted on next save.
+- Bump versionName to 0.18.4 / versionCode 22.
+- Re-run static source audit; Android compilation still requires CI/Android Studio.

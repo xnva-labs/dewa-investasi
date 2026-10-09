@@ -79,9 +79,9 @@ fun MenstruationScreen() {
 
     LaunchedEffect(Unit) {
         val values = context.menstruationStore.data.first()
-        startDate = values[START_KEY].orEmpty()
-        cycleLength = values[CYCLE_KEY].orEmpty()
-        duration = values[DURATION_KEY].orEmpty()
+        startDate = runCatching { PrivateCycleCipher.decrypt(values[START_KEY].orEmpty()) }.getOrDefault("")
+        cycleLength = runCatching { PrivateCycleCipher.decrypt(values[CYCLE_KEY].orEmpty()) }.getOrDefault("")
+        duration = runCatching { PrivateCycleCipher.decrypt(values[DURATION_KEY].orEmpty()) }.getOrDefault("")
         reminderEnabled = values[REMINDER_KEY] ?: false
     }
 
@@ -104,7 +104,7 @@ fun MenstruationScreen() {
                 Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Catatan opsional", style = MaterialTheme.typography.titleLarge)
-                        Text("Semua kolom awalnya kosong. Isi hanya kalau kamu mau. Catatan disimpan lokal di perangkat, tidak dikirim ke layanan jadwal sholat atau hadis.")
+                        Text("Semua kolom awalnya kosong. Isi hanya kalau kamu mau. Catatan disimpan lokal dan dienkripsi dengan AES-GCM memakai kunci Android Keystore; tidak dikirim ke layanan jadwal sholat atau hadis. Data lama akan dienkripsi saat kamu menyimpannya lagi.")
                     }
                 }
             }
@@ -136,9 +136,9 @@ fun MenstruationScreen() {
                             require(duration.isBlank() || (periodDuration != null && periodDuration in 1..15)) { "Lama haid harus 1–15 hari." }
                             require(!reminderEnabled || (startDate.isNotBlank() && cycle != null)) { "Isi tanggal terakhir dan panjang siklus untuk memakai pengingat." }
                             context.menstruationStore.edit { prefs ->
-                                prefs[START_KEY] = startDate.trim()
-                                prefs[CYCLE_KEY] = cycleLength.trim()
-                                prefs[DURATION_KEY] = duration.trim()
+                                prefs[START_KEY] = PrivateCycleCipher.encrypt(startDate.trim())
+                                prefs[CYCLE_KEY] = PrivateCycleCipher.encrypt(cycleLength.trim())
+                                prefs[DURATION_KEY] = PrivateCycleCipher.encrypt(duration.trim())
                                 prefs[REMINDER_KEY] = reminderEnabled
                             }
                             if (reminderEnabled) {

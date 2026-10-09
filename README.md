@@ -1,4 +1,4 @@
-# Zahra v0.18.2 — Calm Islamic companion & yearly growth
+# Zahra v0.18.5 — Calm Islamic companion & yearly growth
 
 Aplikasi Android untuk ibadah dan aktivitas harian, misi otomatis, konten hadis/doa daring, level tahunan tersimpan, kebun benih yang tumbuh dari reward, serta teman virtual Mimi. Visual memakai warna sage, teal, lavender, dan putih hangat; tidak ada estetika cyberpunk.
 
@@ -54,6 +54,9 @@ Lalu buka tab **Actions** dan jalankan workflow **Android CI** untuk membuat APK
 
 - Kalender haid opsional: kolom kosong saat pertama dibuka, input manual tanggal mulai/siklus/durasi, penyimpanan lokal di perangkat, serta pengingat umum sekitar 3 hari sebelum perkiraan berikutnya. Estimasi bukan fatwa atau diagnosis; pengguna dapat mematikan pengingat kapan saja.
 - Ikon launcher minimalis huruf Z dengan palet sage dan lavender.
+- Beranda menyapa sesuai waktu lokal dan menampilkan pesan penyemangat harian yang jelas ditandai sebagai catatan pribadi, bukan hadis.
+- Preferensi pengingat sholat wajib dan alarm puasa tersimpan lokal sehingga pilihan tetap ada saat layar dibuka kembali.
+- Halaman Surat Kecil menyimpan pesan personal dengan AES-GCM dan kunci Android Keystore; tulisan pribadi dipisahkan jelas dari hadis/doa, dan catatan versi lama tetap bisa dibaca lalu terenkripsi saat disimpan ulang.
 
 - Onboarding, profil, misi ibadah dan aktivitas (buat/ubah/selesai/jeda/lanjut/arsip), pengulangan, dan pengingat.
 - Reward tetes air dengan jumlah yang mengikuti tingkat kesulitan misi. Tetes air adalah progres aplikasi, bukan ukuran pahala atau nilai ibadah.
@@ -73,10 +76,15 @@ Lalu buka tab **Actions** dan jalankan workflow **Android CI** untuk membuat APK
 Folder ini adalah **root repository**. Upload/commit isi ZIP ini langsung ke root repo (jangan bungkus lagi dengan folder `src/`). Buka folder proyek ini di Android Studio atau jalankan workflow **Android CI** dari tab **Actions**.
 
 
-## Arah produk v0.18.2
+## Arah produk v0.18.5
 
 - Tidak ada game terpisah: beranda memadukan Mimi, kebun kecil, level tahunan, aktivitas dan akses cepat ibadah.
 - Tetes air, EXP, pakan dan poin adalah gamifikasi aplikasi, bukan ukuran pahala, kualitas iman, atau hukum ibadah.
 - Estimasi kesulitan adalah heuristik lokal yang bisa meleset, bukan model AI yang memahami konteks atau penilaian agama.
 - Hadis dan doa diambil dari API pihak ketiga saat layar dibuka; verifikasi rujukan dan penjelasan tetap diperlukan. Konten daring tidak dijamin tersedia offline.
-- Build APK dan tes JUnit harus dijalankan di Android Studio/CI karena Gradle executable dan Android SDK tidak tersedia di lingkungan pengeditan ini. Lihat `docs/QA_REPORT_V0.18.2.md` untuk hasil audit source terbaru.
+- Build APK dan tes JUnit harus dijalankan di Android Studio/CI karena Gradle executable dan Android SDK tidak tersedia di lingkungan pengeditan ini. Lihat `docs/QA_REPORT_V0.18.4.md` untuk hasil audit source terbaru.
+
+
+## Revisi v0.18.5
+- Pengingat sholat dan puasa kini mengambil jadwal untuk hari berikutnya dari AlAdhan setelah notifikasi berjalan, dengan fallback jam lokal ketika jaringan gagal. WorkManager tetap dapat terlambat sesuai kebijakan baterai Android.
+- Catatan kalender haid dienkripsi saat disimpan menggunakan AES-GCM dan kunci Android Keystore. Data plaintext versi lama dibaca untuk kompatibilitas lalu dienkripsi saat disimpan ulang.

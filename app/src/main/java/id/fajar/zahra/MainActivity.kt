@@ -116,6 +116,16 @@ private val CardWhite = Color(0xFFFFFFFF)
 
 private fun waterRewardForDifficulty(difficulty: Int): Int = ProgressionRules.waterForDifficulty(difficulty)
 
+private val DAILY_ENCOURAGEMENTS = listOf(
+    "Hari ini tidak harus sempurna. Satu langkah baik sudah berarti.",
+    "Istirahat juga bagian dari merawat diri.",
+    "Semoga hari ini ada hal kecil yang membuatmu tersenyum.",
+    "Pelan-pelan tidak apa-apa; yang penting kamu tetap memberi ruang untuk tumbuh.",
+    "Jangan lupa minum air dan bersikap lembut pada dirimu sendiri.",
+    "Semoga Allah mudahkan urusanmu dan tenangkan hatimu hari ini.",
+    "Kamu boleh mulai lagi tanpa harus menyalahkan diri sendiri."
+)
+
 private val LEAF_MESSAGES = listOf(
     "Aku suka caramu tetap berusaha, bahkan saat langkahmu pelan.",
     "Ada seseorang yang diam-diam berharap harimu terasa lebih ringan.",
@@ -213,6 +223,7 @@ fun ZahraApp(
         composable("islamic-content") { IslamicContentScreen() }
         composable("prayer-times") { PrayerTimesScreen() }
         composable("menstruation") { MenstruationScreen() }
+        composable("personal-note") { PersonalNoteScreen() }
         composable("stats") { Stats(vm) }
         composable("history") { History(vm) }
         composable("calendar") { CalendarScreen(vm) }
@@ -242,34 +253,68 @@ fun ZahraApp(
 
 @Composable
 fun Welcome(save: (String, Int) -> Unit) {
+    var showPersonalize by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
-    var age by remember { mutableStateOf("") }
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(28.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Zahra", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
-            Text("Ibadah, aktivitas harian, dan Mimi si kucing—dalam satu ruang yang tenang.")
-            Spacer(Modifier.height(24.dp))
-            OutlinedTextField(name, { name = it.take(80) }, label = { Text("Nama") }, singleLine = true)
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                age,
-                { age = it.filter(Char::isDigit).take(3) },
-                label = { Text("Usia") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
-            Spacer(Modifier.height(18.dp))
-            Button(
-                enabled = name.isNotBlank() && (age.toIntOrNull() ?: 0) in 1..120,
-                onClick = { save(name.trim(), age.toInt()) }
-            ) { Text("Masuk") }
-            Spacer(Modifier.height(8.dp))
-            Text("by :fjr  ·  for :zahra", style = MaterialTheme.typography.labelSmall)
+    val motion = rememberInfiniteTransition(label = "welcome-garden")
+    val floatY by motion.animateFloat(
+        initialValue = 0f,
+        targetValue = -7f,
+        animationSpec = infiniteRepeatable(tween(1900), repeatMode = RepeatMode.Reverse),
+        label = "welcome-float"
+    )
+    Surface(modifier = Modifier.fillMaxSize(), color = Background) {
+        Box(Modifier.fillMaxSize()) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawCircle(Color(0xFFE4EFE6), radius = size.width * .34f, center = Offset(size.width * .92f, size.height * .12f))
+                drawCircle(Color(0xFFF0EAF8), radius = size.width * .24f, center = Offset(size.width * .02f, size.height * .82f))
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Surface(shape = RoundedCornerShape(32.dp), color = Color.White.copy(alpha = .92f), shadowElevation = 3.dp) {
+                    Column(Modifier.padding(horizontal = 28.dp, vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🐈", fontSize = 64.sp, modifier = Modifier.offset(y = floatY.dp))
+                        Text("🌱", fontSize = 43.sp, modifier = Modifier.offset(y = (floatY / 2).dp))
+                    }
+                }
+                Spacer(Modifier.height(28.dp))
+                Text("Selamat datang di", style = MaterialTheme.typography.titleMedium, color = Secondary)
+                Text("Zahra", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold, color = Primary)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Ruang kecil untuk tumbuh pelan-pelan, merawat kebiasaan baik, dan menemani hari bersama Mimi.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF52645A),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(26.dp))
+                Button(onClick = { save(name.trim().ifBlank { "Sahabat" }, 0) }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
+                    Text("Mulai perjalanan kecil  ✨", fontSize = 16.sp)
+                }
+                TextButton(onClick = { showPersonalize = !showPersonalize }) {
+                    Text(if (showPersonalize) "Sembunyikan personalisasi" else "Atur sapaan (opsional)")
+                }
+                AnimatedVisibility(visible = showPersonalize, enter = fadeIn() + scaleIn(), exit = fadeOut()) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it.take(80) },
+                            label = { Text("Mau disapa apa?") },
+                            placeholder = { Text("Boleh dikosongkan") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("Nama dan usia tidak wajib. Usia tidak diminta saat memulai.", style = MaterialTheme.typography.bodySmall, color = Secondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                Text("pelan-pelan juga tetap bertumbuh", style = MaterialTheme.typography.labelMedium, color = Secondary)
+                Spacer(Modifier.height(4.dp))
+                Text("by :fjr  ·  for :zahra", style = MaterialTheme.typography.labelSmall, color = Color(0xFF8A978F))
+            }
         }
     }
 }
@@ -282,7 +327,15 @@ fun Dashboard(name: String, vm: AppViewModel, go: (String) -> Unit) {
     val actionMessage by vm.actionMessage.collectAsState(null)
     val annualRecords by vm.yearlyProgress.collectAsState(emptyList())
     val year = Calendar.getInstance().get(Calendar.YEAR)
+    val today = Calendar.getInstance()
     val annual = annualRecords.firstOrNull { it.year == year } ?: YearlyProgressEntity(year = year)
+    val encouragement = DAILY_ENCOURAGEMENTS[today.get(Calendar.DAY_OF_YEAR) % DAILY_ENCOURAGEMENTS.size]
+    val greeting = when (today.get(Calendar.HOUR_OF_DAY)) {
+        in 4..10 -> "Selamat pagi"
+        in 11..14 -> "Selamat siang"
+        in 15..17 -> "Selamat sore"
+        else -> "Selamat malam"
+    }
     val mimiMotion = rememberInfiniteTransition(label = "mimi-motion")
     val mimiOffset by mimiMotion.animateFloat(
         initialValue = -2.5f,
@@ -319,7 +372,7 @@ fun Dashboard(name: String, vm: AppViewModel, go: (String) -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("ZAHRA · DAILY COMPANION", style = MaterialTheme.typography.labelMedium, color = Primary, fontWeight = FontWeight.Bold)
-                        Text("Hai, ${name.ifBlank { "teman" }}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Text("$greeting${name.ifBlank { "" }.let { if (it.isBlank()) "" else ", $it" }}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                         Text("Langkah kecil, hari yang lebih bermakna.", style = MaterialTheme.typography.bodyMedium)
                     }
                     Surface(shape = RoundedCornerShape(18.dp), color = Primary.copy(alpha = .12f)) {
@@ -327,6 +380,22 @@ fun Dashboard(name: String, vm: AppViewModel, go: (String) -> Unit) {
                     }
                 }
                 actionMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().animateContentSize(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color(0xFFF0ECF8))
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("✿", style = MaterialTheme.typography.headlineMedium, color = Secondary)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Pesan kecil hari ini", fontWeight = FontWeight.Bold, color = Secondary)
+                            Text(encouragement, style = MaterialTheme.typography.bodyMedium)
+                            Text("Catatan penyemangat Zahra · bukan hadis", style = MaterialTheme.typography.labelSmall, color = Secondary)
+                        }
+                    }
+                }
             }
             item {
                 ElevatedCard(
@@ -433,7 +502,10 @@ fun Dashboard(name: String, vm: AppViewModel, go: (String) -> Unit) {
                 }
             }
             item {
-                OutlinedButton(onClick = { go("menstruation") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("♡  Kalender haid pribadi") }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { go("menstruation") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("♡  Kalender haid") }
+                    OutlinedButton(onClick = { go("personal-note") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("✉  Surat kecil") }
+                }
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1045,13 +1117,14 @@ fun History(vm: AppViewModel) {
 @Composable
 fun ProfileScreen(profile: ProfileEntity?, vm: AppViewModel) {
     var name by remember(profile?.name) { mutableStateOf(profile?.name.orEmpty()) }
-    var age by remember(profile?.age) { mutableStateOf(profile?.age?.toString().orEmpty()) }
+    var age by remember(profile?.age) { mutableStateOf(profile?.age?.takeIf { it > 0 }?.toString().orEmpty()) }
     Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text("Profil") }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(name, { name = it.take(80) }, Modifier.fillMaxWidth(), label = { Text("Nama") }, singleLine = true)
             OutlinedTextField(age, { age = it.filter(Char::isDigit).take(3) }, Modifier.fillMaxWidth(), label = { Text("Usia") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            Text("Usia opsional — boleh dikosongkan.", style = MaterialTheme.typography.bodySmall, color = Secondary)
             Text("Dibuat: ${profile?.createdAt?.let { DateFormat.getDateTimeInstance().format(Date(it)) }.orEmpty()}", style = MaterialTheme.typography.bodySmall)
-            Button(enabled = name.isNotBlank() && (age.toIntOrNull() ?: 0) in 1..120, onClick = { vm.saveProfile(name, age.toInt()) }, modifier = Modifier.fillMaxWidth()) { Text("Simpan perubahan") }
+            Button(enabled = name.isNotBlank() && (age.isBlank() || (age.toIntOrNull() ?: 0) in 1..120), onClick = { vm.saveProfile(name, age.toIntOrNull() ?: 0) }, modifier = Modifier.fillMaxWidth()) { Text("Simpan perubahan") }
         }
     }
 }

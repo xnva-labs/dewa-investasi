@@ -7,6 +7,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
@@ -15,16 +16,18 @@ object PrayerTimesRepository {
     data class PrayerTime(val name: String, val time: String, val epochMillis: Long)
     data class DayTimes(val dateLabel: String, val prayers: List<PrayerTime>, val imsak: PrayerTime, val maghrib: PrayerTime)
 
-    suspend fun fetchCirebon(): DayTimes = withContext(Dispatchers.IO) {
-        val connection = (URL("https://api.aladhan.com/v1/timingsByCity?city=Cirebon&country=Indonesia&method=20").openConnection() as HttpURLConnection).apply {
+    suspend fun fetchCirebon(dayOffset: Int = 0): DayTimes = withContext(Dispatchers.IO) {
+        val jakarta = TimeZone.getTimeZone("Asia/Jakarta")
+        val targetDate = Calendar.getInstance(jakarta).apply { add(Calendar.DAY_OF_YEAR, dayOffset) }.time
+        val apiDate = SimpleDateFormat("dd-MM-yyyy", Locale.US).apply { timeZone = jakarta }.format(targetDate)
+        val connection = (URL("https://api.aladhan.com/v1/timingsByCity/$apiDate?city=Cirebon&country=Indonesia&method=20").openConnection() as HttpURLConnection).apply {
             connectTimeout = 10000; readTimeout = 10000; requestMethod = "GET"
         }
         try {
             val root = JSONObject(connection.inputStream.bufferedReader().use { it.readText() }).getJSONObject("data")
             val timings = root.getJSONObject("timings")
             val dateLabel = root.getJSONObject("date").getString("readable")
-            val jakarta = TimeZone.getTimeZone("Asia/Jakarta")
-            val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = jakarta }.format(Date())
+            val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = jakarta }.format(targetDate)
             fun time(key: String, label: String): PrayerTime {
                 val hhmm = timings.getString(key).take(5)
                 val millis = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).apply { timeZone = jakarta }.parse("$day $hhmm")?.time ?: System.currentTimeMillis()

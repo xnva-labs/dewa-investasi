@@ -13,8 +13,8 @@ android {
         applicationId = "id.fajar.zahra"
         minSdk = 24
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.18.2"
+        versionCode = 23
+        versionName = "0.18.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }

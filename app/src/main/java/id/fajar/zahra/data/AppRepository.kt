@@ -123,19 +123,19 @@ class AppRepository(
 
     suspend fun saveProfile(name: String, age: Int) {
         val clean = name.trim().take(80)
-        require(clean.isNotBlank()) { "Nama wajib diisi." }
+        require(clean.isNotBlank()) { "Nama panggilan tidak boleh kosong." }
         val old = db.profileDao().get()
         val now = System.currentTimeMillis()
         db.profileDao().save(
             ProfileEntity(
                 id = 1,
                 name = clean,
-                age = age.coerceIn(1, 120),
+                age = age.coerceIn(0, 120),
                 createdAt = old?.createdAt ?: now,
                 updatedAt = now
             )
         )
-        db.eventDao().insert(AppEventEntity(type = "PROFILE", title = "Profil disimpan", detail = "$clean · ${age.coerceIn(1, 120)} tahun", createdAt = now))
+        db.eventDao().insert(AppEventEntity(type = "PROFILE", title = "Profil disimpan", detail = if (age in 1..120) "$clean · ${age} tahun" else "Sapaan: $clean · usia tidak diisi", createdAt = now))
     }
 
     suspend fun seedRewards() {

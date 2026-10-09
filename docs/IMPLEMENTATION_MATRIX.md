@@ -26,3 +26,26 @@ Legend: ✅ source implemented, 🧪 statically checked, ⬜ runtime/device pend
 | Performance safeguards + debug telemetry | ✅ | 🧪* | ⬜ |
 
 *Godot runtime is not installed in this environment, so these remain source-level checks until a Godot/Android build environment is available.
+
+
+## Revisi v0.18.3
+
+| Perubahan | Source | Static | Runtime/device |
+|---|---:|---:|---:|
+| Sambutan tanpa formulir nama/usia wajib | ✅ | 🧪 | ⬜ |
+| Sapaan berdasarkan waktu lokal + pesan harian non-hadis | ✅ | 🧪 | ⬜ |
+| Preferensi pengingat salat/puasa tersimpan lokal | ✅ | 🧪 | ⬜ |
+| Surat kecil personal tersimpan lokal dan terpisah dari konten agama | ✅ | 🧪 | ⬜ |
+| APK dan tes unit pada Android SDK/CI | ⬜ | — | ⬜ |
+
+
+## Revisi v0.18.5
+
+- Pesan pribadi dienkripsi dengan AES-GCM; kunci dibuat dan disimpan oleh Android Keystore. Catatan plaintext dari versi lama dimigrasikan saat disimpan ulang.
+- Versi aplikasi: 0.18.5 (versionCode 23).
+- Audit statis lulus; build Android masih harus dikonfirmasi melalui CI atau Android Studio.
+
+
+## Revisi v0.18.5
+- Pengingat sholat dan puasa kini mengambil jadwal untuk hari berikutnya dari AlAdhan setelah notifikasi berjalan, dengan fallback jam lokal ketika jaringan gagal. WorkManager tetap dapat terlambat sesuai kebijakan baterai Android.
+- Catatan kalender haid dienkripsi saat disimpan menggunakan AES-GCM dan kunci Android Keystore. Data plaintext versi lama dibaca untuk kompatibilitas lalu dienkripsi saat disimpan ulang.
