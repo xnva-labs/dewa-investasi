@@ -1,0 +1,39 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.4.1"
+      - name: Audit statis (import dan konfigurasi)
+        shell: bash
+        run: python3 tools/audit/audit_all.py 2>&1 | tee build.log
+      - name: Unit test dan build APK debug
+        shell: bash
+        run: gradle testDebugUnitTest assembleDebug --stacktrace --console=plain 2>&1 | tee build.log
+      - name: Ringkasan penyebab gagal
+        if: failure()
+        shell: bash
+        run: |
+          { echo '### Penyebab gagal'; echo '```'; grep -nE -A12 "What went wrong|^e: |error:|^- app/" build.log | head -80; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zahra-debug-apk-dan-laporan
+          path: |
+            build.log
+            app/build/outputs/apk/debug/*.apk
+            app/build/reports/tests/testDebugUnitTest/
