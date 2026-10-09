@@ -13,8 +13,8 @@ android {
         applicationId = "id.fajar.zahra"
         minSdk = 24
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.17.0"
+        versionCode = 16
+        versionName = "0.16.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
@@ -28,20 +28,6 @@ android {
 
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 
-
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-
-    // Proyek Godot (scripts/, scenes/, project.godot) berada di src/main/assets dan ikut dikemas ke APK.
-    androidResources { noCompress += listOf("pck", "zip") }
 }
 
 kotlin {
@@ -76,7 +62,6 @@ dependencies {
     implementation("androidx.camera:camera-view:1.6.2")
     implementation("com.google.mlkit:pose-detection:18.0.0-beta5")
     implementation("com.google.mlkit:image-labeling:17.0.9")
-    implementation("org.godotengine:godot:4.7.2.stable")
     debugImplementation("androidx.compose.ui:ui-tooling:1.12.1")
 
     testImplementation("junit:junit:4.13.2")

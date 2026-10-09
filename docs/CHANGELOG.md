@@ -1,40 +1,12 @@
-# v0.17.0 — Realistic Life World
-
-- Visual architecture upgraded from low-poly primitives to layered procedural humanoids, vehicles, vegetation, building details and road infrastructure.
-- SAVE_VERSION raised to 17 with backward-compatible loading logic.
-- Mobile renderer + ACES tonemapping + dynamic shadows enabled for stronger material/lighting fidelity.
-- Simulation systems from v0.16 remain active.
-
-# v0.16.0 — Full 3D Life World
-
-## Fokus
-- Dunia 3D diperluas menjadi kota hidup dengan fasad bangunan, rumah tambahan, trotoar, lampu jalan, pepohonan, kendaraan, dan marker distrik.
-- Politik, bisnis, dan agama diperlakukan sebagai sistem inti yang saling memengaruhi.
-- Rantai ekonomi diperluas: pemasok → produksi → stok → harga → permintaan → pendapatan → upah → pajak → layanan publik.
-- Karier politik, anggaran publik, layanan kota, karyawan, rantai pasok, dan wakaf komunitas ditambahkan.
-- NPC mendapatkan household, income, faith practice, business interest, dan civic interest.
-- Android mendapatkan World Command Center dan sinkronisasi event WORLD_STATE melalui bridge.
-- Save game dinaikkan ke SAVE_VERSION 16 dengan fallback/migrasi format lama.
-
-# v0.15.0 — Life Simulation Focus
-
-- Game 3D dipusatkan pada tiga pilar: **agama, bisnis, politik**, dengan kehidupan pribadi tetap menjadi fondasi.
-- Ditambahkan sistem ibadah sederhana: jadwal salat, streak, pembelajaran agama, kegiatan masjid, aksi sosial, simulasi zakat, dan mode puasa Ramadan.
-- Bisnis kini memiliki mode operasi `Fair & Halal`, `Competitive`, dan `Aggressive`, dengan efek pada kepercayaan pelanggan dan integritas usaha.
-- Politik diperluas dengan dua kebijakan fiktif: `market_fairness` dan `community_health`.
-- HUD game dipecah menjadi tab **KEHIDUPAN / AGAMA / BISNIS / POLITIK** agar ponsel tidak dibebani puluhan tombol sekaligus.
-- World map menambah Business Hub, Hospital, dan Community Center; jalan visual dikurangi dari 42 mesh menjadi 10 mesh.
-- Material 3D dicache, shadow directional dimatikan sebagai default mobile, interval update HUD/NPC/perf/bridge direnggangkan.
-- Autosave dibuat debounce: tidak lagi melakukan kompresi+hash pada setiap tap.
-- SAVE_VERSION dinaikkan menjadi 10 dengan migrasi backwards-compatible untuk save lama.
-- Release Android memakai R8/resource shrinking dengan keep rules untuk bridge, Godot activity, Room/data, dan reminder lifecycle.
-
 # CHANGELOG
 
-## v0.14.0-fix1
-- Perbaikan build CI: `compileSdk` 36 -> 37 (`androidx.core:core-ktx` 1.19.x mensyaratkan compileSdk 37; error `CheckAarMetadataTask`). `targetSdk` tetap 36.
-- Menambah `web/zahra-world.html`: prototipe game 3D three.js (kebun, restoran, masjid, balai, NPC, misi amal). Belum terhubung ke app Android; butuh internet untuk memuat three.js dari CDN.
-
+## v0.14.0-fix2
+- Build CI: `compileSdk` 36 -> 37 (core-ktx 1.19.x). Dependensi Godot dicabut seluruhnya (sumber risiko build terbesar); proyek Godot dipindah ke `legacy-godot/`.
+- Game 3D kini three.js di WebView (`GameActivity`, `assets/game/index.html`, `GameJsBridge`): kebun, pasar, restoran, masjid, balai, 6 NPC, misi amal, politik. `three.min.js` diunduh CI sebelum build (lihat android.yml); build lokal: unduh manual ke `app/src/main/assets/game/`.
+- Misi selesai di app -> pahala di game. Amal di game -> tercatat di History app.
+- Dashboard: kartu "Dunia Zahra" dengan tombol masuk. Misi: 12 template misi ibadah harian.
+- Game: jalan dan pagar kebun, bunga, tangan dan mata karakter, menu salad premium, nada saat waktu sholat tiba, bintang restoran (+pahala), uji asap Node (13 hari simulasi) lolos.
+- CI: log lengkap (`build.log`) dan ringkasan penyebab gagal di tab Summary.
 
 ## v0.14.0 - perbaikan build/parse + jalur CI
 Audit statis terhadap v0.13.0 menemukan kesalahan yang pasti menggagalkan build atau memuat skrip. Semuanya diperbaiki:
@@ -103,3 +75,10 @@ Infrastruktur
 - Election difficulty tied to political state.
 - Consequence-chain World Brain events.
 - Bounded debug performance telemetry.
+
+## v0.16.0 — Game polish
+- Proporsi karakter stylized dan gerak tangan/kaki dirapikan.
+- Rumah dilengkapi pintu/jendela dan jalur penghubung.
+- HUD/tutorial lebih bersih; interaksi NPC acak dikurangi.
+- Batas render ponsel disetel lebih konservatif.
+- Pemuatan Three.js memakai dua CDN dan pesan fallback yang jelas; offline bundling masih belum terpenuhi.

@@ -1,11 +1,6 @@
 name: Godot smoke test
 
 on:
-  push:
-    branches: [main]
-    paths: ["app/src/main/assets/**", "tests/godot/**", ".github/workflows/godot.yml"]
-  pull_request:
-    paths: ["app/src/main/assets/**", "tests/godot/**"]
   workflow_dispatch:
 
 jobs:
@@ -24,7 +19,7 @@ jobs:
       - name: Parse skrip dan jalankan smoke test dunia 3D
         run: |
           set +e
-          godot --headless --path app/src/main/assets -s "$GITHUB_WORKSPACE/tests/godot/run_tests.gd" 2>&1 | tee godot.log
+          godot --headless --path legacy-godot -s "$GITHUB_WORKSPACE/tests/godot/run_tests.gd" 2>&1 | tee godot.log
           code=${PIPESTATUS[0]}
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" godot.log; then echo "Ditemukan error skrip Godot"; exit 1; fi
           exit $code

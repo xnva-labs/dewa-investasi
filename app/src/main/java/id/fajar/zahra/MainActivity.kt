@@ -86,6 +86,23 @@ import kotlinx.coroutines.withContext
 private val Primary = Color(0xFF8C6A83)
 private val Background = Color(0xFFFFFAFC)
 
+private data class Ibadah(val title: String, val desc: String, val points: Int, val diff: Int)
+
+private val IBADAH = listOf(
+    Ibadah("Sholat Subuh tepat waktu", "Sholat Subuh di awal waktu.", 12, 2),
+    Ibadah("Sholat Dzuhur tepat waktu", "Sholat Dzuhur di awal waktu.", 10, 1),
+    Ibadah("Sholat Ashar tepat waktu", "Sholat Ashar di awal waktu.", 10, 1),
+    Ibadah("Sholat Maghrib tepat waktu", "Sholat Maghrib di awal waktu.", 10, 1),
+    Ibadah("Sholat Isya tepat waktu", "Sholat Isya di awal waktu.", 10, 1),
+    Ibadah("Sholat Dhuha", "Sholat sunnah Dhuha.", 12, 2),
+    Ibadah("Baca Quran satu halaman", "Tilawah minimal satu halaman.", 15, 2),
+    Ibadah("Dzikir pagi dan petang", "Dzikir pagi atau petang.", 8, 1),
+    Ibadah("Sedekah", "Bersedekah, sekecil apa pun.", 20, 2),
+    Ibadah("Bantu orang tua", "Membantu orang tua hari ini.", 15, 2),
+    Ibadah("Berbagi makanan", "Berbagi makanan dengan orang lain.", 15, 2),
+    Ibadah("Puasa sunnah", "Puasa sunnah Senin atau Kamis.", 25, 3)
+)
+
 class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
@@ -157,9 +174,6 @@ fun ZahraApp(
         composable("dashboard") {
             Dashboard(profile?.name.orEmpty(), vm, onGame) { nav.navigate(it) }
         }
-        composable("world") {
-            WorldCommandCenter(db = db, onGame = onGame)
-        }
         composable("missions") {
             Missions(vm) { route -> nav.navigate(route) }
         }
@@ -198,83 +212,6 @@ fun ZahraApp(
             SettingsScreen(vm, db, settings) {
                 nav.navigate("welcome") {
                     popUpTo("settings") { inclusive = true }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-fun WorldCommandCenter(db: ZahraDatabase, onGame: () -> Unit) {
-    val events by db.eventDao().observeRecent().collectAsState(emptyList())
-    val worldEvents = events.filter { it.type == "GAME:WORLD_STATE" || it.type.startsWith("GAME:") }.take(12)
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Zahra World") },
-                navigationIcon = {}
-            )
-        }
-    ) { padding ->
-        LazyColumn(
-            Modifier.fillMaxSize().padding(padding).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Text("Command Center", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("Kontrol dan ringkasan dunia 3D: kehidupan, agama, bisnis, dan politik.")
-            }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("AGAMA", fontWeight = FontWeight.Bold)
-                        Text("Masjid, salat, Ramadan, kajian, zakat, sedekah, wakaf, dan komunitas berjalan sebagai sistem dunia.")
-                        LinearProgressIndicator(progress = { 0.68f }, modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("BISNIS", fontWeight = FontWeight.Bold)
-                        Text("Produksi → stok → harga → permintaan → pendapatan → upah → pajak → layanan publik.")
-                        LinearProgressIndicator(progress = { 0.61f }, modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("POLITIK", fontWeight = FontWeight.Bold)
-                        Text("Faksi, konsultasi publik, kebijakan, anggaran, reputasi, koalisi, pemilu fiktif, dan karier pelayanan.")
-                        LinearProgressIndicator(progress = { 0.57f }, modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
-            item {
-                Button(onClick = onGame, modifier = Modifier.fillMaxWidth()) {
-                    Text("Buka Dunia 3D")
-                }
-            }
-            item {
-                Text("Sinkronisasi dunia", style = MaterialTheme.typography.titleLarge)
-            }
-            if (worldEvents.isEmpty()) {
-                item { Text("Belum ada event dunia. Buka game 3D untuk mulai sinkronisasi.") }
-            } else {
-                items(worldEvents, key = { it.id }) { event ->
-                    ElevatedCard(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(event.title, fontWeight = FontWeight.SemiBold)
-                            Text(event.detail, style = MaterialTheme.typography.bodySmall)
-                            Text(
-                                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.getDefault())
-                                    .format(Date(event.createdAt)),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -321,15 +258,18 @@ fun Dashboard(name: String, vm: AppViewModel, onGame: () -> Unit, go: (String) -
     val points by vm.points.collectAsState(0)
     val done by vm.completedCount.collectAsState(0)
     val actionMessage by vm.actionMessage.collectAsState(null)
+    val active = missions.filter { it.status == "ACTIVE" }
+    val completedToday = missions.count { it.status == "DONE" }
+    val progress = if (missions.isEmpty()) 0f else (completedToday.toFloat() / missions.size).coerceIn(0f, 1f)
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                listOf("dashboard" to "Hari ini", "missions" to "Misi", "stats" to "Statistik", "profile" to "Profil").forEach { (route, label) ->
+                listOf("dashboard" to "Beranda", "missions" to "Misi", "stats" to "Progres", "profile" to "Profil").forEach { (route, label) ->
                     NavigationBarItem(
                         selected = route == "dashboard",
                         onClick = { if (route != "dashboard") go(route) },
-                        icon = { Text(if (route == "dashboard") "⌂" else if (route == "missions") "✓" else if (route == "stats") "↗" else "○") },
+                        icon = { Text(when (route) { "dashboard" -> "⌂"; "missions" -> "✓"; "stats" -> "↗"; else -> "○" }) },
                         label = { Text(label) }
                     )
                 }
@@ -337,55 +277,109 @@ fun Dashboard(name: String, vm: AppViewModel, onGame: () -> Unit, go: (String) -
         }
     ) { padding ->
         LazyColumn(
-            Modifier.fillMaxSize().padding(padding).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Text("Halo, $name 🌷", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-                Text("Satu langkah pada satu waktu.")
-                actionMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("ZAHRA · RUANG TUMBUH", style = MaterialTheme.typography.labelMedium, color = Primary, fontWeight = FontWeight.Bold)
+                        Text("Hai, ${name.ifBlank { "teman" }}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Text("Pelan-pelan, yang penting terus bertumbuh.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Surface(shape = RoundedCornerShape(18.dp), color = Primary.copy(alpha = .12f)) {
+                        Text("✿", modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.headlineSmall, color = Primary)
+                    }
+                }
+                actionMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+            }
+            item {
+                ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp)) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("DUNIA ZAHRA", style = MaterialTheme.typography.labelMedium, color = Primary, fontWeight = FontWeight.Bold)
+                        Text("Satu desa. Banyak cerita.", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Rawat kebun, jalankan usaha, bantu warga, dan jalani rutinitasmu di dunia simulasi Zahra.", style = MaterialTheme.typography.bodyMedium)
+                        Button(onClick = onGame, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Masuk ke dunia Zahra  →") }
+                    }
+                }
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Card(Modifier.weight(1f)) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(points.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                            Text("Poin")
+                    ElevatedCard(Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("✦", color = Primary)
+                            Text(points.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                            Text("Goodness Points", style = MaterialTheme.typography.labelMedium)
                         }
                     }
-                    Card(Modifier.weight(1f)) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(done.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                            Text("Total selesai")
+                    ElevatedCard(Modifier.weight(1f), shape = RoundedCornerShape(20.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("✓", color = Primary)
+                            Text(done.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                            Text("Misi selesai", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
             }
-            item { Text("Misi aktif", style = MaterialTheme.typography.titleLarge) }
-            items(missions.filter { it.status == "ACTIVE" }.take(5), key = { it.id }) { mission ->
-                MissionCard(
-                    mission,
-                    done = { vm.complete(mission) },
-                    pause = { vm.pause(mission.id) },
-                    resume = { vm.resume(mission.id) },
-                    archive = { vm.archive(mission) },
-                    showControls = false,
-                    onProof = if (mission.proofType == "NONE") null else {
-                        { go("camera/${mission.id}/${mission.proofType}/${Uri.encode(mission.proofTarget)}") }
-                    },
-                    edit = { go("edit/${mission.id}") }
-                )
+            item {
+                ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Ringkasan aktivitas", fontWeight = FontWeight.SemiBold)
+                            Text("${active.size} aktif", color = Primary, style = MaterialTheme.typography.labelLarge)
+                        }
+                        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                        Text(if (missions.isEmpty()) "Mulai dengan menambahkan satu misi kecil." else "${(progress * 100).toInt()}% dari daftar misi berstatus selesai.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
-            if (missions.none { it.status == "ACTIVE" }) item { Text("Belum ada misi aktif.") }
-            item { Button(onClick = { go("missions") }, modifier = Modifier.fillMaxWidth()) { Text("Kelola misi") } }
-            item { OutlinedButton(onClick = { go("calendar") }, modifier = Modifier.fillMaxWidth()) { Text("Buka kalender") } }
-            item { OutlinedButton(onClick = { go("lists") }, modifier = Modifier.fillMaxWidth()) { Text("Daftar & checklist") } }
-            item { OutlinedButton(onClick = { go("rewards") }, modifier = Modifier.fillMaxWidth()) { Text("Reward") } }
-            item { OutlinedButton(onClick = { go("camera") }, modifier = Modifier.fillMaxWidth()) { Text("Kamera proof") } }
-            item { OutlinedButton(onClick = { go("world") }, modifier = Modifier.fillMaxWidth()) { Text("Zahra World Command Center") } }
-            item { OutlinedButton(onClick = onGame, modifier = Modifier.fillMaxWidth()) { Text("Masuk ke dunia 3D") } }
-            item { TextButton(onClick = { go("history") }) { Text("Lihat history") } }
-            item { TextButton(onClick = { go("settings") }) { Text("Pengaturan & backup") } }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Akses cepat", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { go("missions") }) { Text("Semua misi") }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { go("calendar") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("▦  Kalender") }
+                    OutlinedButton(onClick = { go("lists") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("☷  Checklist") }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { go("rewards") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("◇  Reward") }
+                    OutlinedButton(onClick = { go("history") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("◷  Riwayat") }
+                }
+            }
+            item { Text("Misi aktif", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+            if (active.isEmpty()) {
+                item {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Belum ada misi aktif", fontWeight = FontWeight.SemiBold)
+                            Text("Tambahkan rutinitas sederhana supaya kamu punya langkah pertama hari ini.", style = MaterialTheme.typography.bodyMedium)
+                            Button(onClick = { go("missions") }) { Text("Buat atau pilih misi") }
+                        }
+                    }
+                }
+            } else {
+                items(active.take(5), key = { it.id }) { mission ->
+                    MissionCard(
+                        mission,
+                        done = { vm.complete(mission) },
+                        pause = { vm.pause(mission.id) },
+                        resume = { vm.resume(mission.id) },
+                        archive = { vm.archive(mission) },
+                        showControls = false,
+                        onProof = if (mission.proofType == "NONE") null else {
+                            { go("camera/${mission.id}/${mission.proofType}/${Uri.encode(mission.proofTarget)}") }
+                        },
+                        edit = { go("edit/${mission.id}") }
+                    )
+                }
+            }
+            item { OutlinedButton(onClick = { go("camera") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("Buka kamera bukti") } }
+            item { TextButton(onClick = { go("settings") }, modifier = Modifier.fillMaxWidth()) { Text("Pengaturan, backup, dan privasi") } }
         }
     }
 }
@@ -411,6 +405,13 @@ fun Missions(vm: AppViewModel, go: (String) -> Unit) {
             Modifier.fillMaxSize().padding(padding).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            item { Text("Template misi ibadah (harian, ketuk untuk menambah)", style = MaterialTheme.typography.titleSmall) }
+            items(IBADAH, key = { it.title }) { t ->
+                OutlinedButton(
+                    onClick = { vm.addMission(t.title, t.desc, "Ibadah", t.points, t.diff, "NONE", "", null, RepeatRules.DAILY) },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("${t.title} · +${t.points}") }
+            }
             item { OutlinedTextField(title, { title = it.take(120) }, Modifier.fillMaxWidth(), label = { Text("Nama misi") }, singleLine = true) }
             item { OutlinedTextField(description, { description = it.take(500) }, Modifier.fillMaxWidth(), label = { Text("Deskripsi (opsional)") }, minLines = 2) }
             item { OutlinedTextField(category, { category = it.take(50) }, Modifier.fillMaxWidth(), label = { Text("Kategori") }, singleLine = true) }

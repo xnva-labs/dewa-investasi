@@ -1,15 +1,15 @@
-# Zahra v0.15.0
+# Zahra v0.15.0 — App-first polish
 
 Aplikasi pribadi (Android) untuk misi, daftar, reward, dan bukti kamera, ditambah **dunia 3D simulasi kehidupan** (Godot) yang tertanam di dalam APK yang sama.
 
-> Status jujur: kode ini **belum pernah dikompilasi atau dijalankan** (tidak ada Android SDK/Gradle/Godot di lingkungan pembuatnya). v0.15.0 melanjutkan hardening v0.14.0 dengan fokus pada gameplay agama-bisnis-politik dan optimasi mobile (lihat `docs/VERIFICATION_REPORT_V0.14.0.md`). Build pertama kemungkinan masih menemukan beberapa error kecil. CI di `.github/workflows` disiapkan supaya error itu langsung kelihatan.
+> Status verifikasi: audit statis tersedia, tetapi paket ini belum berhasil di-build menjadi APK di lingkungan kerja ini karena Gradle/Android SDK tidak tersedia. Jalankan build dan unit test di Android Studio/CI sebelum instalasi final.
 
 ## Struktur repo
 
 ```
 .
 ├── app/                         Modul Android (Kotlin, Jetpack Compose, Room, WorkManager, CameraX, ML Kit)
-│   └── src/main/assets/         Proyek Godot 4.7 (project.godot, scenes/, scripts/world.gd) -> ikut dikemas ke APK
+│   └── src/main/assets/         Game Three.js lokal di assets/game/index.html; halaman web alternatif di web/zahra-world.html
 ├── tests/godot/run_tests.gd     Smoke test Godot headless (parse semua skrip + jalankan dunia 3D beberapa hari)
 ├── tools/audit/                 Audit statis tanpa kompiler (python3 tools/audit/audit_all.py)
 ├── docs/                        Status, changelog, laporan verifikasi, gerbang rilis, desain World Brain
@@ -50,6 +50,22 @@ git push -u origin main
 
 Lalu buka tab **Actions**: workflow Android dan Godot akan jalan otomatis dan menunjukkan error build yang tersisa.
 
+## Pembaruan v0.16.0 — game lebih rapi dan nyaman
+
+- Karakter pemain/NPC diperhalus dengan proporsi kepala, badan, tangan, kaki, rambut, dan wajah yang lebih seimbang; animasi langkah dibuat lebih tenang. Ini tetap gaya 3D stylized, bukan manusia fotorealistis.
+- Rumah diberi pintu, jendela, lis, jalur, dan koneksi jalan sederhana.
+- Teks tutorial dan HUD dirapikan; obrolan acak yang terasa repetitif dikurangi; emoji dekoratif di HUD dihapus.
+- Render pixel ratio dibatasi ke 1.5 dan shadow map 512 untuk membantu performa ponsel.
+- Game mencoba memuat Three.js dari dua CDN. Karena Three.js tidak ada di arsip sumber dan akses jaringan build tidak tersedia, game 3D belum offline/self-contained; game memerlukan koneksi untuk memuat library, kecuali `three.min.js` ditambahkan secara lokal.
+- Manifest menambahkan izin INTERNET untuk pemuatan library game.
+
+## Pembaruan v0.15.0
+
+- Dashboard Android ditata ulang menjadi pusat aktivitas: hero dunia Zahra, kartu Goodness Points dan misi selesai, progress, akses cepat, daftar misi aktif, empty state, serta shortcut pengaturan/backup.
+- Build metadata diperbarui ke `versionCode 15` / `versionName 0.15.0`.
+- Perilaku data, Room, backup terenkripsi, kamera proof, reminder, dan bridge tidak diganti pada perubahan visual ini.
+- Catatan game: `app/src/main/assets/game/index.html` merujuk `three.min.js`, tetapi file tersebut tidak ada pada ZIP sumber. Perlu vendoring Three.js untuk game berjalan sepenuhnya offline; aplikasi utama tetap dapat dibangun terpisah dari game.
+
 ## Fitur
 
 - Onboarding aman, profil, misi (buat/ubah/selesai/jeda/lanjut/arsip), pengulangan, jadwal tanggal-jam, daftar/checklist.
@@ -57,32 +73,14 @@ Lalu buka tab **Actions**: workflow Android dan Godot akan jalan otomatis dan me
 - Pengingat opt-in (WorkManager) yang disinkronkan ulang saat reboot, ganti jam, ganti zona waktu.
 - Bukti kamera: foto, pose (ML Kit), objek (ML Kit). AI hanya memberi evidence; keputusan akhir tetap pada pengguna.
 - Backup terenkripsi portabel (password, PBKDF2 + AES-GCM) dan restore dengan validasi.
-- Dunia 3D: kehidupan pribadi, agama, bisnis, politik/pemerintahan, NPC berjadwal, event dinamis, peta kota, simpanan terkompresi + integritas.
+- Dunia simulasi 3D berbasis Three.js: karakter pemain, NPC, kebun, pasar, masjid, balai warga, event dan sistem ekonomi ringan.
 - Jembatan app <-> game v2: terautentikasi (Android Keystore HMAC), antrean inbox/outbox, event ID unik.
 
 ## Kosmetik dan pembagian poin
 
 Poin aplikasi (nyata) dan uang game (virtual) sengaja dipisah; koneksi bersifat opsional.
 
-# Zahra v0.16.0 — Full 3D Life World
 
-Implementasi penuh scope 3D + politik + bisnis + agama + optimasi aplikasi Android.
+## Mulai cepat di GitHub
 
-### Game 3D
-- Kota low-poly lengkap: fasad, rumah, trotoar, lampu, pepohonan, kendaraan, marker distrik.
-- NPC hidup dengan pekerjaan, rumah tangga, pendapatan, kebutuhan sosial, minat bisnis/sipil, dan praktik agama.
-- Ekonomi kausal: pemasok → produksi → stok → pasar → profit → upah → pajak → layanan publik.
-- Politik: faksi, kebijakan, anggaran, konsultasi, karier pelayanan, koalisi, pemilu fiktif.
-- Agama: masjid, salat, Ramadan, kajian, komunitas, zakat, sedekah, wakaf.
-- Save `SAVE_VERSION=16`, compressed ZSTD, integrity metadata, atomic backup.
-
-### Android
-- Version `0.16.0` / code `16`.
-- World Command Center untuk ringkasan sistem dan event dunia.
-- Bridge event `WORLD_STATE` dari Godot ke Android.
-- R8/resource shrinking dan ABI filtering tetap dipertahankan.
-
-### Validation
-- `python3 tools/audit/audit_all.py` → PASS
-- `bash docs/STATIC_CHECKS.sh` → PASS
-- Gradle/Godot runtime build tidak dapat dijalankan di environment ini karena wrapper/binary tidak tersedia.
+Folder ini adalah **root repository**. Upload/commit isi ZIP ini langsung ke root repo (jangan bungkus lagi dengan folder `src/`). Buka folder proyek ini di Android Studio atau jalankan workflow GitHub Actions dari tab **Actions**.

@@ -1,5 +1,5 @@
 android_sdk_target: PASS
-version_0_17: PASS
+version_0_13: PASS
 backup_disabled: PASS
 backup_rules: PASS
 bridge_protocol_2: PASS
@@ -18,6 +18,6 @@ event_director: PASS
 bridge_direction: PASS
 perf_telemetry: PASS
 android_tests: PASS
-world_gd_functions: 112
+world_gd_functions: 69
 world_gd_duplicate_functions: []
 gdscript_bare_assignment_unknown: []

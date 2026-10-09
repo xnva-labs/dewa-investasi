@@ -1,11 +1,12 @@
 <!doctype html><html lang="id"><head><meta charset="utf-8"><title>Zahra World</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>
-:root{--bg:#9ccbea;--pn:rgba(18,32,30,.82);--tx:#f6efe6;--ac:#d9a8cf;--gd:#e8c27a;--ok:#9ad1a0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--bg:#9ccbea;--pn:rgba(18,32,30,.82);--tx:#f6efe6;--ac:#d8b77a;--gd:#e8c27a;--ok:#9ad1a0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0a1224}}
 :root[data-theme=dark]{--bg:#0a1224}
 html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
 body{height:100%;margin:0;background:var(--bg);overflow:hidden;font:14px/1.35 system-ui,sans-serif;color:var(--tx);touch-action:none;user-select:none}
+button{cursor:pointer;touch-action:manipulation}button:focus-visible{outline:2px solid #f4dca5;outline-offset:2px}
 canvas{display:block;position:fixed;inset:0}
 #ui{position:fixed;inset:0;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px calc(env(safe-area-inset-bottom,0px) + 8px);pointer-events:none}
 .pn{background:var(--pn);border-radius:12px;padding:8px 12px}
@@ -36,12 +37,18 @@ body:not(.go) #ui,body:not(.go) .nm{display:none!important}
 .tc small{opacity:.7}
 #how{display:none;text-align:left;margin:8px 0}
 </style></head><body>
-<div id="ti"><div class="tc"><h1>Zahra</h1><p>Tanam, berbagi, dan tumbuh bersama satu desa kecil.</p>
-<div id="how" class="pn">Joystick kiri: jalan. Geser layar: putar kamera. Tombol Aksi: tanam, panen, masak, sholat, ngobrol. Ikuti sinar emas dan tulisan 🎯 di atas. Tekan ⏩ kalau nunggu tanaman tumbuh.</div>
-<button id="b1">Mulai</button><button id="b3">Cara main</button><button id="b2">Mulai dari awal</button><small>by :fjr · for :zahra</small></div></div>
+<div id="ti"><div class="tc"><h1>Zahra</h1><p>Jalani kehidupan di desa yang tenang. Bertani, berdagang, dan kenali warga.</p>
+<div id="how" class="pn">Joystick kiri untuk bergerak. Geser layar untuk memutar kamera. Dekati tempat atau warga lalu tekan Aksi. Tanam, panen, berdagang, dan bantu warga. Tombol Cepat mempercepat waktu.</div>
+<button id="b1">Mulai</button><button id="b3">Cara bermain</button><button id="b2">Mulai ulang</button><small>Desa Zahra · Simulasi kehidupan</small></div></div>
 <div id="ui"><div id="top" class="pn"><div id="l1"></div><div id="l2"></div></div><div id="gl" class="pn"></div><div id="ts"></div><div id="mn" class="pn"></div>
-<div id="js"><div id="kn"></div></div><div id="bt"><button id="ab">Aksi</button><button id="fb">⏩ Cepat</button><button id="mb">Misi</button></div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<div id="js"><div id="kn"></div></div><div id="bt"><button id="ab">Aksi</button><button id="fb">Cepat ×1</button><button id="mb">Misi</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/three@0.128.0/build/three.min.js'"></script>
+<script>
+if (!window.THREE) {
+  document.body.innerHTML = '<main style="min-height:100vh;box-sizing:border-box;padding:32px;display:flex;flex-direction:column;justify-content:center;gap:14px;background:#17251f;color:#f6efe6;font:16px system-ui"><h1 style="margin:0">Zahra World</h1><p>Komponen 3D belum dapat dimuat. Periksa koneksi internet, lalu buka kembali game.</p><p>Fitur utama Zahra seperti misi, kalender, reward, kamera bukti, dan backup tetap tersedia tanpa game.</p><button onclick="history.back()" style="padding:14px;border:0;border-radius:12px;background:#d8b77a;color:#243128;font-weight:700">Kembali ke aplikasi</button></main>';
+  throw new Error('Three.js dependency could not be loaded');
+}
+</script>
 <script>
 const T=THREE,$=i=>document.getElementById(i),R=Math.random,cl=(v,a,b)=>Math.max(a,Math.min(b,v));
 const D={padi:{n:'Padi',g:360,p:12,s:8,c:0xd8c15a},tomat:{n:'Tomat',g:480,p:10,s:7,c:0xd8412f},melon:{n:'Melon',g:720,p:34,s:25,c:0x8cc152}};
@@ -53,12 +60,13 @@ while(S.pl.length<8)S.pl.push({c:null,t:0});
 const pm=()=>EV[S.ev][1]*(S.pol.pajak?1.1:1),sp=c=>Math.round(D[c].s*(S.pol.subsidi?.5:1));
 const pnow=()=>PR.find(p=>S.min/60>=p[1]&&S.min/60<p[2]);
 // ---------- scene
-const rd=new T.WebGLRenderer({antialias:true});rd.setPixelRatio(Math.min(devicePixelRatio,2));rd.setSize(innerWidth,innerHeight);
+if(!T.WebGLRenderer || !document.createElement('canvas').getContext('webgl')){document.body.innerHTML='<main style="padding:28px;font:16px system-ui;color:#f6efe6;background:#17251f;min-height:100vh;box-sizing:border-box"><h1>Zahra World</h1><p>Perangkat ini belum mendukung grafis WebGL yang dibutuhkan untuk menjalankan dunia 3D.</p><p>Aplikasi Zahra tetap dapat digunakan untuk misi, kalender, reward, dan backup.</p><button onclick="history.back()">Kembali ke aplikasi</button></main>';throw new Error('WebGL is not available');}
+const rd=new T.WebGLRenderer({antialias:true});rd.setPixelRatio(Math.min(devicePixelRatio,1.5));rd.setSize(innerWidth,innerHeight);
 rd.shadowMap.enabled=true;rd.shadowMap.type=T.PCFSoftShadowMap;rd.toneMapping=T.ACESFilmicToneMapping;rd.outputEncoding=T.sRGBEncoding;document.body.prepend(rd.domElement);
 const scene=new T.Scene(),cam=new T.PerspectiveCamera(62,innerWidth/innerHeight,.5,220),bgc=new T.Color();
 scene.fog=new T.Fog(0x9ccbea,35,115);
 const hemi=new T.HemisphereLight(0xcfe6ff,0x5b6b3a,.8),sun=new T.DirectionalLight(0xfff0d0,1.4);
-sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45,far:120});
+sun.castShadow=true;sun.shadow.mapSize.set(512,512);Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45,far:120});
 scene.add(hemi,sun,sun.target);
 function tex(c1,cs,n,rep,w=1,h=5){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle=c1;g.fillRect(0,0,256,256);
 for(let i=0;i<n;i++){g.fillStyle=cs[i%cs.length];g.globalAlpha=.2+R()*.4;g.fillRect(R()*256,R()*256,w+R()*2,h+R()*6)}
@@ -86,6 +94,11 @@ for(let i=0;i<4;i++){const x=-6+i*4;bx(2.6,.9,1.4,x,0,8,M(0x7a5636,.6));bx(3,.15
 // rumah & pohon
 const HM=[[22,13],[26,21],[-30,-11],[30,-21],[8,17],[-8,19]];
 HM.forEach((h,i)=>{bx(4,2.8,4,h[0],0,h[1]-2.6,M([0xe6d5b8,0xd9c1a0,0xc8d6c0][i%3],.9,wT));roof(h[0],2.8,h[1]-2.6,3.5,1.8,[0x8a4b3a,0x5a6a7a][i%2]);OB.push({x:h[0],z:h[1]-2.6,r:3})});
+// Detail rumah: pintu, jendela, lis atap, dan jalur masuk. Bentuk sederhana agar ringan di ponsel.
+HM.forEach((h,i)=>{const z=h[1]-2.6;bx(.85,1.65,.12,h[0],0,z-2.08,M([0x76503b,0x6b4935,0x815a40][i%3],.8));bx(.85,.9,.14,h[0]-1.15,1.05,z-2.09,M(0x9ec7d2,.35));bx(.85,.9,.14,h[0]+1.15,1.05,z-2.09,M(0x9ec7d2,.35));bx(.95,.09,.18,h[0]-1.15,1.05,z-2.18,M(0xf0e7d6));bx(.95,.09,.18,h[0]+1.15,1.05,z-2.18,M(0xf0e7d6));bx(.08,.92,.16,h[0]-1.15,1.05,z-2.2,M(0xf0e7d6));bx(.08,.92,.16,h[0]+1.15,1.05,z-2.2,M(0xf0e7d6));bx(1.2,.12,1.9,h[0],.02,z-3.2,M(0xc9b99d,.95));});
+// Jalur utama dan trotoar menghubungkan area publik.
+bx(5,.035,76,0,.02,-8,M(0x555b5d,1));bx(6,.04,2,0,.03,8,M(0xaaa89e,1));bx(2,.05,48,-7,.03,-1,M(0xb9b5a9,1));bx(2,.05,40,8,.03,-8,M(0xb9b5a9,1));
+for(let z=-42;z<28;z+=5){bx(.12,.015,2.2,0,.055,z,M(0xe6d9b0,1));}
 for(let i=0;i<46;i++){const a=R()*6.283,d=24+R()*38,x=Math.cos(a)*d,z=Math.sin(a)*d;if(Math.abs(x)>60||Math.abs(z)>60)continue;
 const t=new T.Group(),k=1+R()*.7;bx(.5,2.2*k,.5,0,0,0,M(0x5a3d28),t);const f=new T.Mesh(new T.IcosahedronGeometry(1.7*k,1),M(R()<.5?0x3f7a35:0x4f8a3f,.9));f.position.y=3.2*k;f.castShadow=true;t.add(f);t.position.set(x,0,z);scene.add(t);OB.push({x,z,r:.7})}
 // kebun
@@ -98,16 +111,29 @@ for(let x=-28;x<=-17;x+=1.5){bx(.15,1,.15,x,0,3.8,fm);bx(.15,1,.15,x,0,21.2,fm)}
 bx(11.6,.12,.1,-22.5,.6,3.8,fm);bx(11.6,.12,.1,-22.5,.6,21.2,fm);bx(.1,.12,17.5,-28.4,.6,12.5,fm);
 for(let i=0;i<70;i++){const f=new T.Mesh(new T.SphereGeometry(.12,6,6),M([0xe86a9a,0xf2d45c,0xffffff,0xb98adf][i%4],.6));f.position.set(R()*90-45,.12,R()*60-30);scene.add(f)}
 // ---------- orang
-function person(dr,hj){const g=new T.Group();const b=new T.Mesh(new T.CylinderGeometry(.35,.55,1.4,14),M(dr,.7));b.position.y=.7;
-const h=new T.Mesh(new T.SphereGeometry(.32,18,14),M(0xf1c9a5,.6));h.position.y=1.65;const v=new T.Mesh(new T.SphereGeometry(.36,18,14,0,6.3,0,2.1),M(hj,.8));v.position.y=1.68;
-const am=[-.42,.42].map(x=>{const a=new T.Mesh(new T.CylinderGeometry(.08,.08,.7,8),M(dr,.7));a.position.set(x,.95,0);a.rotation.z=x<0?.15:-.15;return a});
-const ey=[-.1,.1].map(x=>{const e=new T.Mesh(new T.SphereGeometry(.035,6,6),M(0x222222));e.position.set(x,1.68,.29);return e});
-g.add(b,h,v,...am,...ey);g.userData.am=am;g.traverse(o=>o.castShadow=true);scene.add(g);return g}
+function person(dr,hj){
+ const g=new T.Group(),skin=M(0xc99470,.78),shirt=M(dr,.86),hair=M(hj,.9),shoe=M(0x393b3b,.9),trouser=M(0x394957,.9);
+ const ell=(rx,ry,rz,mat,x,y,z,seg=12)=>{const m=new T.Mesh(new T.SphereGeometry(1,seg,10),mat);m.scale.set(rx,ry,rz);m.position.set(x,y,z);m.castShadow=true;g.add(m);return m};
+ // Proportions deliberately neutral and softly stylized; avoid oversized heads and dot-eye cartoon faces.
+ ell(.34,.43,.22,shirt,0,1.02,0,14);
+ const neck=new T.Mesh(new T.CylinderGeometry(.105,.12,.18,10),skin);neck.position.set(0,1.42,0);g.add(neck);
+ ell(.245,.29,.23,skin,0,1.68,0,16);
+ // Hair is a cap and rear volume rather than a face-covering sphere.
+ ell(.25,.14,.24,hair,0,1.87,-.015,14);ell(.24,.22,.09,hair,0,1.72,-.17,12);
+ // Eyes sit subtly on the face; tiny highlights keep them readable without an uncanny stare.
+ for(const x of [-.085,.085]){ell(.022,.025,.012,M(0x3c3029,.8),x,1.69,.224,8);}
+ ell(.035,.025,.026,skin,0,1.62,.228,8);
+ // Legs and arms use separate pivot groups so walking animation stays smooth.
+ const legs=[],arms=[];
+ for(const x of [-.13,.13]){const leg=new T.Group();leg.position.set(x,.73,0);g.add(leg);const thigh=new T.Mesh(new T.CylinderGeometry(.095,.11,.38,10),trouser);thigh.position.y=-.19;leg.add(thigh);const foot=new T.Mesh(new T.BoxGeometry(.16,.09,.25),shoe);foot.position.set(0,-.43,.055);leg.add(foot);legs.push(leg);}
+ for(const x of [-.39,.39]){const arm=new T.Group();arm.position.set(x,1.25,0);g.add(arm);const upper=new T.Mesh(new T.CylinderGeometry(.075,.095,.36,10),shirt);upper.position.y=-.2;arm.add(upper);const hand=new T.Mesh(new T.SphereGeometry(.075,10,8),skin);hand.position.set(0,-.43,.01);arm.add(hand);arms.push(arm);}
+ g.userData.am=arms;g.userData.legs=legs;g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});scene.add(g);return g
+}
 const pl=person(0x8c6a83,0xf3e6ee);pl.position.set(0,0,12);const tag=document.createElement('div');
 const NP=[['Alya',0xc96b6b,0x3a5a8a,'farm'],['Raka',0x4a7c59,0x2a2a2a,'farm'],['Sinta',0xd9a441,0x6b4a8c,'resto'],['Dimas',0x5b6c8f,0x1a1a1a,'plaza'],['Mira',0x9a5b8a,0xe0c3d4,'resto'],['Tio',0x6a8f5b,0x2a2a2a,'plaza']]
 .map((n,i)=>{const o=person(n[1],n[2]);const e=document.createElement('div');e.className='nm';e.innerHTML='<i></i><span></span>';document.body.appendChild(e);o.position.set(HM[i][0],0,HM[i][1]);
 return{n:n[0],o,e,role:n[3],home:HM[i],off:[R()*3-1.5,R()*3-1.5],cd:0,say:0,need:0,ph:R()*6}});
-const LN=['Panennya bagus ya!','Harga tomat naik nih','Sudah dzuhur belum?','Katanya ada kebijakan baru','Restorannya enak banget','Ayo ke masjid bareng','Mau hujan nggak ya?','Nanti pilih siapa?','Semoga berkah ya'];
+const LN=['Hari ini cukup ramai.','Harga hasil panen sedang berubah.','Ada kabar baru dari balai warga.','Semoga usaha kita lancar.','Pasar buka sampai sore.','Cuaca bagus untuk berkebun.'];
 function tgt(n){const h=S.min/60,p=pnow();if(p&&p[0]!=='Subuh'&&p[0]!=='Isya'&&n.role!=='farm'||p&&p[0]==='Maghrib')return[14+n.off[0],-5.8+n.off[1]];
 if(h<6||h>=21)return n.home;if(h<11)return n.role==='farm'?[-23,12]:[0,3];if(h<14)return[-12.5+n.off[0],-4.5];if(h<18)return n.role==='farm'?[-23,10]:[0,-18];return[0+n.off[0]*2,0+n.off[1]*2]}
 // ---------- jembatan ke aplikasi Android (ada hanya di dalam app)
@@ -161,7 +187,7 @@ const nd=NP.find(n=>n.need);if(nd&&S.seeds.padi>0)return[nd.n+' butuh benih. Ban
 if(!S.ms.s&&S.money>=10)return['Sedekah $10 di masjid.',14,-4.5];
 if(S.sup<55){const n=NP[S.day%6];return['Ngobrol dengan '+n.n+' biar dukungan naik.',n.o.position.x,n.o.position.z]}
 if(!S.pol.subsidi)return['Usulkan kebijakan di balai warga.',0,-20.5];
-return['Tanaman tumbuh. Tekan ⏩ buat mempercepat.',pt(0).x,pt(0).z]}
+return['Tanaman tumbuh. Gunakan tombol Cepat untuk mempercepat waktu.',pt(0).x,pt(0).z]}
 let cy=0,dg=null;rd.domElement.addEventListener('pointerdown',e=>{dg=e.clientX});
 addEventListener('pointermove',e=>{if(dg!==null){cy-=(e.clientX-dg)*.008;dg=e.clientX}});addEventListener('pointerup',()=>dg=null);
 // ---------- kontrol
@@ -180,30 +206,30 @@ if(s>=55){S.rep+=10;S.money+=50;emit('ELECTION_WON','Pemilu dimenangkan','Dukung
 // ---------- loop
 const clk=new T.Clock(),dayC=new T.Color(0x9ccbea),nightC=new T.Color(0x0a1224);let lh=-1,acc=0,sv=0;
 function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.1),gm=started?dt*3*fast:0;S.min+=gm;if(S.min>=1440){S.min-=1440;newDay()}
-const h=S.min/60,hi=Math.floor(h);const pq=pnow();if(pq&&pq[0]!==LP){LP=pq[0];if(started){chime();toast('Waktu '+pq[0]+' tiba. Ke masjid.')}}else if(!pq)LP='';if(S.star===undefined)S.star=Math.floor(S.rep/25);if(Math.floor(S.rep/25)>S.star){S.star=Math.floor(S.rep/25);if(started)ph(15,'restoran naik bintang ⭐'+S.star)}if(hi!==lh){lh=hi;if((hi>=11&&hi<14||hi>=18&&hi<21)&&S.orders<6){S.orders+=1+(S.ev===3?1:0);const r=NP.find(n=>n.role==='resto');r.say=4;r.e.firstChild.textContent='Pesan makanan!'}}
+const h=S.min/60,hi=Math.floor(h);const pq=pnow();if(pq&&pq[0]!==LP){LP=pq[0];if(started){chime();toast('Waktu '+pq[0]+' telah tiba.')}}else if(!pq)LP='';if(S.star===undefined)S.star=Math.floor(S.rep/25);if(Math.floor(S.rep/25)>S.star){S.star=Math.floor(S.rep/25);if(started)ph(15,'restoran naik bintang ⭐'+S.star)}if(hi!==lh){lh=hi;if((hi>=11&&hi<14||hi>=18&&hi<21)&&S.orders<6){S.orders+=1+(S.ev===3?1:0);const r=NP.find(n=>n.role==='resto');r.say=4;r.e.firstChild.textContent='Pesan makanan!'}}
 S.pl.forEach((p,i)=>{if(p.c)p.t=Math.min(D[p.c].g,p.t+gm*EV[S.ev][2]);const v=PL[i];v.g.visible=!!p.c;if(p.c){const k=p.t/D[p.c].g;v.g.scale.setScalar(.25+.75*k);v.g.children.forEach(s=>s.material.color.setHex(k>=1?D[p.c].c:0x6a9a3a))}});
 const a=(h-6)/12*Math.PI,dk=Math.max(0,Math.sin(a));CL.forEach(c=>{c.position.x+=dt*1.5;if(c.position.x>90)c.position.x=-90;c.material.opacity=.12+.65*dk});sun.position.set(Math.cos(a)*45,Math.max(4,Math.sin(a)*45),20);sun.intensity=.15+1.6*dk*(S.ev===1?.5:1);hemi.intensity=.25+.65*dk;
 bgc.copy(nightC).lerp(dayC,Math.sqrt(dk));if(S.ev===1)bgc.multiplyScalar(.78);scene.background=bgc;scene.fog.color.copy(bgc);scene.fog.near=S.ev===1?15:35;lights.forEach(l=>l.intensity=(1-dk)*1.6);
 let vx=jv.x+(K.d||K.arrowright?1:0)-(K.a||K.arrowleft?1:0),vy=jv.y+(K.s||K.arrowdown?1:0)-(K.w||K.arrowup?1:0);const l=Math.hypot(vx,vy);
-if(l>.1&&started){vx/=Math.max(1,l);vy/=Math.max(1,l);const sn=Math.sin(cy),co=Math.cos(cy),wx=co*vx+sn*vy,wz=-sn*vx+co*vy;pl.position.x+=wx*5*dt;pl.position.z+=wz*5*dt;pl.rotation.y=Math.atan2(wx,wz);pl.position.y=Math.abs(Math.sin(clk.elapsedTime*10))*.08;pl.children[0].rotation.z=Math.sin(clk.elapsedTime*10)*.08;const sw=Math.sin(clk.elapsedTime*10)*.7;pl.userData.am[0].rotation.x=sw;pl.userData.am[1].rotation.x=-sw}
+if(l>.1&&started){vx/=Math.max(1,l);vy/=Math.max(1,l);const sn=Math.sin(cy),co=Math.cos(cy),wx=co*vx+sn*vy,wz=-sn*vx+co*vy;pl.position.x+=wx*5*dt;pl.position.z+=wz*5*dt;pl.rotation.y=Math.atan2(wx,wz);pl.position.y=Math.abs(Math.sin(clk.elapsedTime*10))*.08;pl.children[0].rotation.z=Math.sin(clk.elapsedTime*10)*.08;const sw=Math.sin(clk.elapsedTime*8)*.48;pl.userData.am[0].rotation.x=sw;pl.userData.am[1].rotation.x=-sw;pl.userData.legs[0].rotation.x=-sw;pl.userData.legs[1].rotation.x=sw}
 pl.position.x=cl(pl.position.x,-55,55);pl.position.z=cl(pl.position.z,-55,55);
-for(const o of OB){const dx=pl.position.x-o.x,dz=pl.position.z-o.z,d=Math.hypot(dx,dz);if(d<o.r+.5){pl.position.x=o.x+dx/d*(o.r+.5);pl.position.z=o.z+dz/d*(o.r+.5)}}
+for(const o of OB){const dx=pl.position.x-o.x,dz=pl.position.z-o.z,d=Math.hypot(dx,dz);if(d<o.r+.5){const safeD=Math.max(d,.001);pl.position.x=o.x+dx/safeD*(o.r+.5);pl.position.z=o.z+dz/safeD*(o.r+.5)}}
 const pv=new T.Vector3();
-for(const n of NP){const t=tgt(n),dx=t[0]-n.o.position.x,dz=t[1]-n.o.position.z,d=Math.hypot(dx,dz);if(d>.6){n.o.position.x+=dx/d*2.2*dt;n.o.position.z+=dz/d*2.2*dt;n.o.rotation.y=Math.atan2(dx,dz);n.o.position.y=Math.abs(Math.sin(clk.elapsedTime*8+n.ph))*.06;const sn=Math.sin(clk.elapsedTime*8+n.ph)*.6;n.o.userData.am[0].rotation.x=sn;n.o.userData.am[1].rotation.x=-sn}
+for(const n of NP){const t=tgt(n),dx=t[0]-n.o.position.x,dz=t[1]-n.o.position.z,d=Math.hypot(dx,dz);if(d>.6){n.o.position.x+=dx/d*2.2*dt;n.o.position.z+=dz/d*2.2*dt;n.o.rotation.y=Math.atan2(dx,dz);n.o.position.y=Math.abs(Math.sin(clk.elapsedTime*8+n.ph))*.06;const sn=Math.sin(clk.elapsedTime*7+n.ph)*.36;n.o.userData.am[0].rotation.x=sn;n.o.userData.am[1].rotation.x=-sn;n.o.userData.legs[0].rotation.x=-sn;n.o.userData.legs[1].rotation.x=sn}
 if(n.say>0)n.say-=dt;if(n.say<=0)n.e.firstChild.style.display='none';else n.e.firstChild.style.display='block';
 pv.set(n.o.position.x,2.3,n.o.position.z).project(cam);const vis=pv.z<1&&Math.hypot(n.o.position.x-pl.position.x,n.o.position.z-pl.position.z)<30;n.e.style.display=vis?'block':'none';
 n.e.style.left=(pv.x*.5+.5)*innerWidth+'px';n.e.style.top=(-pv.y*.5+.5)*innerHeight+'px';n.e.lastChild.textContent=n.n+(n.need?' ❗':'')}
-acc+=dt;if(acc>.6){acc=0;for(let i=0;i<6;i++)for(let j=i+1;j<6;j++){const A=NP[i],B=NP[j];if(A.say<=0&&B.say<=0&&Math.hypot(A.o.position.x-B.o.position.x,A.o.position.z-B.o.position.z)<3&&R()<.25){A.say=B.say=4;A.e.firstChild.textContent=LN[(R()*9)|0];B.e.firstChild.textContent=LN[(R()*9)|0];S.sup=Math.min(100,S.sup+.15)}}}
+acc+=dt;if(acc>.6){acc=0;for(let i=0;i<6;i++)for(let j=i+1;j<6;j++){const A=NP[i],B=NP[j];if(A.say<=0&&B.say<=0&&Math.hypot(A.o.position.x-B.o.position.x,A.o.position.z-B.o.position.z)<3&&R()<.08){S.sup=Math.min(100,S.sup+.05)}}}
 if(started){cam.position.set(pl.position.x+Math.sin(cy)*8,4.6,pl.position.z+Math.cos(cy)*8);cam.lookAt(pl.position.x,1.5,pl.position.z)}else{const t=clk.elapsedTime*.08;cam.position.set(Math.cos(t)*30,11,Math.sin(t)*30-6);cam.lookAt(0,2,-6)}sun.target.position.copy(pl.position);sun.position.add(pl.position);
 const hh=String(hi).padStart(2,'0')+':'+String(Math.floor(S.min%60)).padStart(2,'0'),p=pnow(),nx=PR.find(q=>q[1]>h)||PR[0];
-$('l1').innerHTML='Hari '+S.day+' · '+hh+' · '+EV[S.ev][0]+'<br>'+(p?'Waktu '+p[0]:'Berikutnya: '+nx[0]);$('l2').innerHTML='$'+Math.round(S.money)+' · Pahala '+S.ph+'<br>Dukungan '+Math.round(S.sup)+' · Pesanan '+S.orders+' · ⭐'+Math.floor(S.rep/25);
-const o=near();$('ab').textContent=o?'Aksi: '+(o.k==='plot'?'Kebun':o.n):'Aksi';const gg=goal();gmk.position.x=gg[1];gmk.position.z=gg[2];gmk.visible=started&&Math.hypot(gg[1]-pl.position.x,gg[2]-pl.position.z)>2.5;$('gl').textContent='🎯 '+gg[0];rd.render(scene,cam);
+$('l1').innerHTML='Hari '+S.day+' · '+hh+' · '+EV[S.ev][0]+'<br>'+(p?'Waktu '+p[0]:'Berikutnya: '+nx[0]);$('l2').innerHTML='$'+Math.round(S.money)+' · Poin kebaikan '+S.ph+'<br>Dukungan warga '+Math.round(S.sup)+' · Pesanan '+S.orders+' · Reputasi '+Math.floor(S.rep/25);
+const o=near();$('ab').textContent=o?'Aksi: '+(o.k==='plot'?'Kebun':o.n):'Aksi';const gg=goal();gmk.position.x=gg[1];gmk.position.z=gg[2];gmk.visible=started&&Math.hypot(gg[1]-pl.position.x,gg[2]-pl.position.z)>2.5;$('gl').textContent=gg[0];rd.render(scene,cam);
 sv+=dt;if(sv>10){sv=0;try{localStorage.setItem('zw1',JSON.stringify(S))}catch(e){}}}
 let started=false,fast=1;const hasSave=S.day>1||S.ph>0||S.money!==100;
 $('b1').textContent=hasSave?'Lanjutkan':'Mulai';$('b2').style.display=hasSave?'block':'none';
-$('b1').onclick=()=>{started=true;document.body.classList.add('go');$('ti').style.display='none';toast('Ikuti sinar emas. Geser layar buat memutar kamera.')};
+$('b1').onclick=()=>{started=true;document.body.classList.add('go');$('ti').style.display='none';toast('Gunakan joystick untuk bergerak. Dekati tempat atau warga untuk berinteraksi.')};
 $('b3').onclick=()=>{const e=$('how');e.style.display=e.style.display==='block'?'none':'block'};
 $('b2').onclick=()=>{try{localStorage.removeItem('zw1')}catch(e){}location.reload()};
-$('fb').onclick=()=>{fast=fast===1?6:1;$('fb').style.opacity=fast>1?1:.6;toast(fast>1?'Waktu dipercepat':'Waktu normal')};
+$('fb').onclick=()=>{fast=fast===1?6:1;$('fb').style.opacity=fast>1?1:.6;$('fb').textContent=fast>1?'Cepat ×6':'Cepat ×1';toast(fast>1?'Waktu dipercepat':'Waktu normal')};
 loop();
 </script></body></html>

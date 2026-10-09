@@ -17,3 +17,8 @@ app/src/main/assets/export_presets.cfg
 # OS
 .DS_Store
 Thumbs.db
+
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/

@@ -1,10 +1,10 @@
 extends Node3D
 
-# Zahra v0.17 Realistic Life World — procedural realistic 3D foundation.
+# Zahra 3D Life Simulation foundation.
 # One playable character, autonomous NPCs, economy, society and government.
 # No network dependency is required for the simulation loop.
 
-const SAVE_VERSION := 17
+const SAVE_VERSION := 9
 const WORLD_SIZE := 44
 const SAVE_PATH_COMPRESSED := "user://zahra_world.zsav"
 const SAVE_PATH_LEGACY := "user://zahra_world.json"
@@ -16,14 +16,8 @@ const SAVE_META_VERSION := 1
 const PERF_LOG_PATH := "user://zahra_perf.tsv"
 const PERF_LOG_LIMIT := 300
 
-var material_cache: Dictionary = {}
 var player: CharacterBody3D
 var camera: Camera3D
-var camera_yaw := 38.0
-var camera_pitch := 30.0
-var camera_distance := 12.0
-var camera_touch_active := false
-var last_camera_touch := Vector2.ZERO
 var hud: CanvasLayer
 var sun_light: DirectionalLight3D
 var world_env: Environment
@@ -99,8 +93,6 @@ var policies := {
     "small_business": false,
     "education_fund": false,
     "public_transport": false,
-    "market_fairness": false,
-    "community_health": false,
 }
 
 var own_business := {
@@ -159,48 +151,6 @@ var election_state := {
     "term_days": 0,
 }
 
-
-# v0.16 complete-life systems: the simulation remains deterministic/offline-first.
-var political_career := {
-    "rank": "Citizen",
-    "organization": "Independent",
-    "years_active": 0,
-    "public_service": 0.0,
-    "policy_wins": 0,
-    "constituency": 50.0,
-    "integrity": 82.0,
-}
-var enterprise_state := {
-    "employees": 0,
-    "wage_bill": 0.0,
-    "supplier_reliability": 74.0,
-    "production_capacity": 20.0,
-    "monthly_tax_paid": 0.0,
-    "monthly_profit": 0.0,
-    "contracts": 0,
-    "market_share": 3.0,
-}
-var civic_state := {
-    "district": "Pusat Kota",
-    "services": 60.0,
-    "safety": 76.0,
-    "education": 62.0,
-    "health": 64.0,
-    "mobility": 52.0,
-    "housing": 58.0,
-}
-var religious_calendar_state := {
-    "ramadan_day": 0,
-    "eid_ready": false,
-    "study_sessions": 0,
-    "mosque_attendance": 0,
-    "community_events": 0,
-    "waqf_total": 0.0,
-}
-var simulation_accumulator := 0.0
-var world_state_emit_accumulator := 0.0
-var detail_labels: Array[Label3D] = []
-var street_props: Array[Node3D] = []
 var save_path := SAVE_PATH_COMPRESSED
 
 # Dynamic World Brain: lightweight state-driven simulation.
@@ -252,55 +202,13 @@ var active_opportunity := {"id": "", "title": "", "kind": "", "expires": 0}
 var business_state := {
     "sector": "Food",
     "price_strategy": "Balanced",
-    "ethics_mode": "Fair & Halal",
     "supplier_quality": 72.0,
     "marketing": 35.0,
     "customer_trust": 50.0,
     "competitive_pressure": 30.0,
-    "halal_integrity": 88.0,
     "growth_points": 0.0,
 }
 var world_revision := 0
-var world_dirty := true
-var current_action_category := "life"
-var action_container: GridContainer
-var action_category_label: Label
-
-# Faith/community/ethical-life signals used as game systems; not a measure of real-world merit.
-var religious_state := {
-    "faith": 60.0,
-    "religion_knowledge": 5.0,
-    "community": 50.0,
-    "prayers_today": 0,
-    "prayer_total": 0,
-    "prayer_streak": 0,
-    "charity_total": 0.0,
-    "zakat_total": 0.0,
-    "last_zakat_day": -999,
-    "fasting_today": false,
-    "calendar_day": 1,
-    "calendar_month": 1,
-    "is_ramadan": false,
-}
-var prayer_flags := {
-    "Subuh": false,
-    "Dzuhur": false,
-    "Ashar": false,
-    "Maghrib": false,
-    "Isya": false,
-}
-var prayer_times := {
-    "Subuh": 300,
-    "Dzuhur": 720,
-    "Ashar": 900,
-    "Maghrib": 1080,
-    "Isya": 1185,
-}
-var calendar_month_names := [
-    "Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir",
-    "Jumadil Awal", "Jumadil Akhir", "Rajab", "Sya'ban",
-    "Ramadan", "Syawal", "Dzulqa'dah", "Dzulhijjah"
-]
 var last_save_day := -1
 var autosave_accumulator := 0.0
 var npc_update_accumulator := 0.0
@@ -331,7 +239,7 @@ func _ready() -> void:
     _init_android_bridge()
     _consume_android_events()
     if FileAccess.file_exists(SAVE_PATH_LEGACY) or not FileAccess.file_exists(SAVE_META_PATH) or save_repair_pending:
-        _save_world(true)
+        _save_world()
     _update_hud()
 
 
@@ -401,70 +309,39 @@ func _process(delta: float) -> void:
     _update_player_health()
 
     npc_update_accumulator += delta
-    if npc_update_accumulator >= 0.20:
+    if npc_update_accumulator >= 0.10:
         var npc_dt := npc_update_accumulator
         npc_update_accumulator = 0.0
         _update_npcs(npc_dt)
 
     environment_update_accumulator += delta
-    if environment_update_accumulator >= 0.40:
+    if environment_update_accumulator >= 0.20:
         environment_update_accumulator = 0.0
         _update_environment()
 
     hud_update_accumulator += delta
-    if hud_update_accumulator >= 0.50:
+    if hud_update_accumulator >= 0.25:
         hud_update_accumulator = 0.0
         _update_hud()
 
     bridge_poll_accumulator += delta
-    if bridge_poll_accumulator >= 3.0:
+    if bridge_poll_accumulator >= 2.0:
         bridge_poll_accumulator = 0.0
         _consume_android_events()
 
     autosave_accumulator += delta
-    if autosave_accumulator >= 30.0:
+    if autosave_accumulator >= 45.0:
         autosave_accumulator = 0.0
         _save_world()
 
-    simulation_accumulator += delta
-    if simulation_accumulator >= 2.0:
-        simulation_accumulator = 0.0
-        _simulate_living_city(2.0)
-
-    world_state_emit_accumulator += delta
-    if world_state_emit_accumulator >= 10.0:
-        world_state_emit_accumulator = 0.0
-        _emit_world_state()
-
     performance_accumulator += delta
-    if performance_accumulator >= 5.0:
+    if performance_accumulator >= 2.0:
         performance_accumulator = 0.0
         _capture_performance()
 
 func _notification(what: int) -> void:
     if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
-        _save_world(true)
-
-func _unhandled_input(event: InputEvent) -> void:
-    if event is InputEventScreenTouch:
-        camera_touch_active = event.pressed
-        if event.pressed:
-            last_camera_touch = event.position
-        return
-    if event is InputEventScreenDrag and camera_touch_active:
-        var drag: Vector2 = event.relative
-        camera_yaw = fmod(camera_yaw - drag.x * 0.22, 360.0)
-        camera_pitch = clamp(camera_pitch - drag.y * 0.16, 12.0, 52.0)
-        _update_camera_transform()
-
-func _update_camera_transform() -> void:
-    if camera == null:
-        return
-    var yaw := deg_to_rad(camera_yaw)
-    var pitch := deg_to_rad(camera_pitch)
-    var horizontal := cos(pitch) * camera_distance
-    camera.position = Vector3(sin(yaw) * horizontal, sin(pitch) * camera_distance, cos(yaw) * horizontal)
-    camera.look_at(player.global_position + Vector3(0, 1.0, 0))
+        _save_world()
 
 func _advance_game_minutes(minutes: int) -> void:
     var steps := maxi(minutes, 0)
@@ -495,10 +372,12 @@ func _update_player_health() -> void:
 
 func _check_prayer_time() -> void:
     var prayer_name := ""
-    for name in prayer_times.keys():
-        if time_minutes == int(prayer_times[name]):
-            prayer_name = String(name)
-            break
+    match time_minutes:
+        300: prayer_name = "Subuh"
+        720: prayer_name = "Dzuhur"
+        900: prayer_name = "Ashar"
+        1080: prayer_name = "Maghrib"
+        1185: prayer_name = "Isya"
     if prayer_name.is_empty():
         return
     var key := "%d:%s" % [day, prayer_name]
@@ -506,33 +385,10 @@ func _check_prayer_time() -> void:
         return
     prayer_notice_key = key
     interaction_message = "Adzan %s. Waktu ibadah telah masuk." % prayer_name
-    world_dirty = true
-
-func _update_religious_calendar() -> void:
-    var calendar_day := ((day - 1) % 360) + 1
-    var calendar_month := int((calendar_day - 1) / 30) + 1
-    religious_state["calendar_day"] = calendar_day
-    religious_state["calendar_month"] = calendar_month
-    religious_state["is_ramadan"] = calendar_month == 9
-
-func _nearest_prayer_name() -> String:
-    var best_name := ""
-    var best_distance := 9999
-    for name in prayer_times.keys():
-        var distance: int = absi(time_minutes - int(prayer_times[name]))
-        if distance <= 60 and distance < best_distance:
-            best_distance = distance
-            best_name = String(name)
-    return best_name
 
 func _mat(c: Color) -> StandardMaterial3D:
-    var key := c.to_html(true)
-    if material_cache.has(key):
-        return material_cache[key]
     var material := StandardMaterial3D.new()
     material.albedo_color = c
-    material.roughness = 0.88
-    material_cache[key] = material
     return material
 
 func _box(n: String, pos: Vector3, size: Vector3, c: Color) -> MeshInstance3D:
@@ -551,11 +407,7 @@ func _building(n: String, pos: Vector3, c: Color, title: String) -> void:
     if n == "Home":
         _home_building(pos, c, title)
         return
-    if n == "Mosque":
-        _mosque_building(pos, c, title)
-        return
     _box(n, pos, Vector3(5, 2.5, 4), c)
-    _add_building_facade(pos, c, n)
     var body := StaticBody3D.new()
     body.position = pos
     body.name = n + "Collision"
@@ -570,43 +422,6 @@ func _building(n: String, pos: Vector3, c: Color, title: String) -> void:
     label.font_size = 48
     label.position = pos + Vector3(0, 2.2, 0)
     label.modulate = Color("#4D4650")
-    add_child(label)
-
-func _mosque_building(pos: Vector3, c: Color, title: String) -> void:
-    _box("MosqueBase", pos, Vector3(5.5, 2.1, 4.5), c)
-    var dome := MeshInstance3D.new()
-    var sphere := SphereMesh.new()
-    sphere.height = 2.4
-    sphere.radius = 1.55
-    dome.mesh = sphere
-    dome.material_override = _mat(Color("#B9D5A9"))
-    dome.position = pos + Vector3(0, 2.1, 0)
-    dome.scale = Vector3(1.0, 0.65, 1.0)
-    add_child(dome)
-    for side in [-1.0, 1.0]:
-        var minaret := MeshInstance3D.new()
-        var cylinder := CylinderMesh.new()
-        cylinder.height = 4.2
-        cylinder.top_radius = 0.18
-        cylinder.bottom_radius = 0.24
-        minaret.mesh = cylinder
-        minaret.material_override = _mat(c.darkened(0.08))
-        minaret.position = pos + Vector3(side * 2.45, 1.9, -1.5)
-        add_child(minaret)
-    var body := StaticBody3D.new()
-    body.position = pos
-    body.name = "MosqueCollision"
-    add_child(body)
-    var shape := CollisionShape3D.new()
-    var box_shape := BoxShape3D.new()
-    box_shape.size = Vector3(5.5, 2.1, 4.5)
-    shape.shape = box_shape
-    body.add_child(shape)
-    var label := Label3D.new()
-    label.text = title
-    label.font_size = 48
-    label.position = pos + Vector3(0, 3.0, 0)
-    label.modulate = Color("#405043")
     add_child(label)
 
 func _home_building(pos: Vector3, c: Color, title: String) -> void:
@@ -648,253 +463,6 @@ func _home_collision(pos: Vector3, size: Vector3, offset: Vector3, n: String) ->
     shape.shape = box_shape
     body.add_child(shape)
 
-
-# ---------------------------------------------------------------------------
-# v0.17 REALISTIC LIFE WORLD
-# Procedural assets keep the APK self-contained while replacing the old
-# low-poly presentation with layered materials, humanoid anatomy, street
-# detail, vehicles, vegetation, and realistic lighting.
-# ---------------------------------------------------------------------------
-
-func _pbr(c: Color, roughness := 0.72, metallic := 0.0, emission := Color(0,0,0)) -> StandardMaterial3D:
-    var key := "pbr:%s:%s:%s:%s" % [c.to_html(true), roughness, metallic, emission.to_html(true)]
-    if material_cache.has(key):
-        return material_cache[key]
-    var m := StandardMaterial3D.new()
-    m.albedo_color = c
-    m.roughness = roughness
-    m.metallic = metallic
-    if emission.a > 0.0 or emission.r > 0.0 or emission.g > 0.0 or emission.b > 0.0:
-        m.emission_enabled = true
-        m.emission = emission
-        m.emission_energy_multiplier = 1.8
-    material_cache[key] = m
-    return m
-
-func _primitive(parent: Node3D, mesh: Mesh, pos: Vector3, mat: Material, scale := Vector3.ONE, name := "Part") -> MeshInstance3D:
-    var n := MeshInstance3D.new()
-    n.name = name
-    n.mesh = mesh
-    n.position = pos
-    n.scale = scale
-    n.material_override = mat
-    parent.add_child(n)
-    return n
-
-func _build_humanoid_visual(parent: Node3D, index: int, player_character := false) -> void:
-    var root := Node3D.new()
-    root.name = "HumanoidVisual"
-    parent.add_child(root)
-    var skin_palette := [
-        Color("#B87954"), Color("#D49A73"), Color("#8F5B3F"),
-        Color("#E0AA82"), Color("#9E684A"), Color("#C88860")
-    ]
-    var shirt_palette := [
-        Color("#31485C"), Color("#6A3F4B"), Color("#4C6654"),
-        Color("#806B45"), Color("#3F4E73"), Color("#7A594C")
-    ]
-    var skin: StandardMaterial3D = _pbr(skin_palette[index % skin_palette.size()], 0.72)
-    var shirt: StandardMaterial3D = _pbr(Color("#8D5F48") if player_character else shirt_palette[index % shirt_palette.size()], 0.84)
-    var pants: StandardMaterial3D = _pbr(Color("#273442") if player_character else Color("#30343B").lerp(shirt_palette[index % shirt_palette.size()], 0.18), 0.92)
-    var hair: StandardMaterial3D = _pbr(Color("#191713").lerp(Color("#4A2E1F"), float(index % 4) / 8.0), 0.86)
-    var shoe := _pbr(Color("#202326"), 0.58, 0.05)
-
-    # Torso and pelvis: proportions closer to a human silhouette than a capsule.
-    var torso := BoxMesh.new()
-    torso.size = Vector3(0.66, 0.78, 0.34)
-    _primitive(root, torso, Vector3(0, 1.25, 0), shirt, Vector3.ONE, "Torso")
-
-    var pelvis := BoxMesh.new()
-    pelvis.size = Vector3(0.55, 0.34, 0.32)
-    _primitive(root, pelvis, Vector3(0, 0.84, 0), pants, Vector3.ONE, "Pelvis")
-
-    var head := SphereMesh.new()
-    head.radius = 0.24
-    head.height = 0.50
-    _primitive(root, head, Vector3(0, 1.86, 0), skin, Vector3(0.92, 1.0, 0.90), "Head")
-
-    var hair_mesh := SphereMesh.new()
-    hair_mesh.radius = 0.245
-    hair_mesh.height = 0.25
-    _primitive(root, hair_mesh, Vector3(0, 2.02, -0.01), hair, Vector3(0.98, 0.55, 0.98), "Hair")
-
-    # Neck, arms and legs use cylinders for joint-friendly silhouettes.
-    var neck := CylinderMesh.new()
-    neck.top_radius = 0.09
-    neck.bottom_radius = 0.10
-    neck.height = 0.16
-    _primitive(root, neck, Vector3(0, 1.65, 0), skin, Vector3.ONE, "Neck")
-
-    for side in [-1.0, 1.0]:
-        var upper_arm := CylinderMesh.new()
-        upper_arm.top_radius = 0.085
-        upper_arm.bottom_radius = 0.105
-        upper_arm.height = 0.54
-        var arm := _primitive(root, upper_arm, Vector3(side * 0.43, 1.28, 0), skin, Vector3.ONE, "Arm")
-        arm.rotation_degrees.z = side * -7.0
-        arm.set_meta("limb", "arm_%d" % int(side))
-        var hand := SphereMesh.new()
-        hand.radius = 0.105
-        hand.height = 0.21
-        _primitive(root, hand, Vector3(side * 0.47, 0.96, 0), skin, Vector3.ONE, "Hand")
-
-        var leg := CylinderMesh.new()
-        leg.top_radius = 0.115
-        leg.bottom_radius = 0.095
-        leg.height = 0.72
-        var leg_node := _primitive(root, leg, Vector3(side * 0.17, 0.46, 0), pants, Vector3.ONE, "Leg")
-        leg_node.set_meta("limb", "leg_%d" % int(side))
-        var foot := BoxMesh.new()
-        foot.size = Vector3(0.22, 0.11, 0.38)
-        _primitive(root, foot, Vector3(side * 0.17, 0.075, 0.08), shoe, Vector3.ONE, "Foot")
-
-    # Small facial features give the NPCs identity at close range.
-    var eye := SphereMesh.new()
-    eye.radius = 0.025
-    eye.height = 0.05
-    var eye_mat := _pbr(Color("#17181A"), 0.25, 0.0)
-    _primitive(root, eye, Vector3(-0.085, 1.88, 0.218), eye_mat, Vector3.ONE, "EyeL")
-    _primitive(root, eye, Vector3(0.085, 1.88, 0.218), eye_mat, Vector3.ONE, "EyeR")
-
-func _animate_humanoid(root: Node, moving: bool, delta: float, phase: float) -> void:
-    if root == null:
-        return
-    var t := Time.get_ticks_msec() * 0.001 + phase
-    var swing := sin(t * (8.0 if moving else 2.0)) * (0.38 if moving else 0.025)
-    for child in root.get_children():
-        if child is MeshInstance3D and child.has_meta("limb"):
-            var limb := String(child.get_meta("limb"))
-            if limb.begins_with("leg_"):
-                child.rotation_degrees.x = rad_to_deg(swing * (-1.0 if limb.ends_with("-1") else 1.0))
-            elif limb.begins_with("arm_"):
-                child.rotation_degrees.x = rad_to_deg(-swing * (1.0 if limb.ends_with("1") else -1.0))
-    root.position.y = sin(t * 3.0) * (0.018 if moving else 0.006)
-
-func _build_realistic_world() -> void:
-    # PBR-like surfaces and denser world dressing. Geometry is procedural so the
-    # APK remains offline-first and does not depend on downloaded asset packs.
-    if world_env != null:
-        world_env.tonemap_mode = Environment.TONE_MAPPER_ACES
-        world_env.tonemap_exposure = 1.15
-        world_env.ambient_light_energy = 0.72
-        world_env.background_energy_multiplier = 0.8
-    if sun_light != null:
-        sun_light.shadow_enabled = true
-        sun_light.directional_shadow_max_distance = 55.0
-        sun_light.directional_shadow_pancake_size = 20.0
-    _build_road_markings()
-    _build_vegetation()
-    _build_realistic_vehicles()
-    _build_building_details()
-    _build_district_signs()
-
-func _build_road_markings() -> void:
-    var asphalt := _pbr(Color("#303338"), 0.94)
-    # Replace the pale road look with layered asphalt strips and lane paint.
-    for x in range(-16, 17, 8):
-        _box("AsphaltNS", Vector3(x, 0.015, 0), Vector3(2.9, 0.035, 44), Color("#303338"))
-        for z in range(-20, 21, 4):
-            _box("LaneDash", Vector3(x, 0.043, float(z)), Vector3(0.07, 0.012, 1.65), Color("#E8D99A"))
-    for z in range(-16, 17, 8):
-        _box("AsphaltEW", Vector3(0, 0.02, z), Vector3(44, 0.04, 2.9), Color("#303338"))
-        for x in range(-20, 21, 4):
-            _box("LaneDash", Vector3(float(x), 0.048, z), Vector3(1.65, 0.012, 0.07), Color("#E8D99A"))
-    # Zebra crossings at central intersections.
-    for x in [-16.0, -8.0, 0.0, 8.0, 16.0]:
-        for i in range(-2, 3):
-            _box("Crosswalk", Vector3(x + i * 0.35, 0.055, 1.9), Vector3(0.20, 0.012, 1.3), Color("#E7E7E2"))
-
-func _build_vegetation() -> void:
-    var trunk_mat := _pbr(Color("#654832"), 0.94)
-    var leaf_mat := _pbr(Color("#3E6B43"), 0.88)
-    var leaf2 := _pbr(Color("#557E4B"), 0.9)
-    var positions := [
-        Vector3(-19,0,-19), Vector3(-13,0,-19), Vector3(-5,0,-19), Vector3(5,0,-19), Vector3(13,0,-19), Vector3(19,0,-19),
-        Vector3(-19,0,19), Vector3(-13,0,19), Vector3(-5,0,19), Vector3(5,0,19), Vector3(13,0,19), Vector3(19,0,19),
-        Vector3(-19,0,-5), Vector3(19,0,-5), Vector3(-19,0,5), Vector3(19,0,5)
-    ]
-    for i in range(positions.size()):
-        var root := Node3D.new()
-        root.position = positions[i]
-        add_child(root)
-        var trunk := CylinderMesh.new()
-        trunk.top_radius = 0.10
-        trunk.bottom_radius = 0.16
-        trunk.height = 1.25
-        _primitive(root, trunk, Vector3(0,0.62,0), trunk_mat, Vector3.ONE, "Trunk")
-        var crown := SphereMesh.new()
-        crown.radius = 0.72
-        crown.height = 1.45
-        _primitive(root, crown, Vector3(0,1.55,0), leaf_mat if i % 2 == 0 else leaf2, Vector3(1.05,0.9,1.05), "Crown")
-
-func _build_realistic_vehicles() -> void:
-    var car_body := _pbr(Color("#49647A"), 0.42, 0.35)
-    var glass := _pbr(Color("#5F7580"), 0.18, 0.25)
-    glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    glass.albedo_color.a = 0.72
-    var tire := _pbr(Color("#171819"), 0.98)
-    var car_positions := [
-        Vector3(-12,0.28,-16), Vector3(4,0.28,-16), Vector3(12,0.28,16),
-        Vector3(-4,0.28,16), Vector3(-16,0.28,8), Vector3(16,0.28,-8)
-    ]
-    for i in range(car_positions.size()):
-        var root := Node3D.new()
-        root.position = car_positions[i]
-        root.rotation_degrees.y = 90.0 if i % 2 == 0 else 0.0
-        add_child(root)
-        var body := BoxMesh.new()
-        body.size = Vector3(1.75,0.42,3.55)
-        _primitive(root, body, Vector3(0,0.35,0), car_body, Vector3.ONE, "Body")
-        var cabin := BoxMesh.new()
-        cabin.size = Vector3(1.45,0.46,1.65)
-        _primitive(root, cabin, Vector3(0,0.70,-0.10), glass, Vector3.ONE, "Cabin")
-        for side in [-1.0,1.0]:
-            for z in [-1.18,1.18]:
-                var wheel := CylinderMesh.new()
-                wheel.top_radius = 0.25
-                wheel.bottom_radius = 0.25
-                wheel.height = 0.16
-                var wn := _primitive(root, wheel, Vector3(side*0.91,0.26,z), tire, Vector3.ONE, "Wheel")
-                wn.rotation_degrees.z = 90.0
-
-func _build_building_details() -> void:
-    var frame := _pbr(Color("#4B4D4F"), 0.38, 0.55)
-    var glass := _pbr(Color("#6B93A3"), 0.22, 0.32)
-    glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    glass.albedo_color.a = 0.62
-    var locations := [
-        Vector3(7,1,-8), Vector3(-8,1,8), Vector3(7,1,8),
-        Vector3(0,1,14), Vector3(-14,1,14), Vector3(14,1,-14), Vector3(14,1,14)
-    ]
-    for p in locations:
-        for floor in range(3):
-            for col in range(3):
-                _box("GlassPanel", p + Vector3(-1.55 + col*1.55, 0.55 + floor*0.72, 2.04), Vector3(1.10,0.46,0.035), Color("#6B93A3"))
-                _box("Frame", p + Vector3(-2.12 + col*1.55, 0.55 + floor*0.72, 2.075), Vector3(0.035,0.52,0.06), Color("#4B4D4F"))
-    # Rooftop water tanks/AC units sell the scale of occupied buildings.
-    for p in locations:
-        _box("RooftopUnit", p + Vector3(1.4,2.85,0.9), Vector3(0.55,0.45,0.55), Color("#73787A"))
-
-func _build_district_signs() -> void:
-    var signs := [
-        [Vector3(-8,2.9,-10.1), "RUMAH & WARGA"],
-        [Vector3(7,2.9,-10.1), "PASAR"],
-        [Vector3(-8,2.9,10.1), "PENDIDIKAN"],
-        [Vector3(0,3.5,-16.5), "MASJID"],
-        [Vector3(0,3.5,16.5), "PEMERINTAH"],
-        [Vector3(-14,3.5,16.5), "BISNIS"],
-        [Vector3(14,3.5,-16.5), "KESEHATAN"]
-    ]
-    for item in signs:
-        var label := Label3D.new()
-        label.text = String(item[1])
-        label.position = item[0]
-        label.font_size = 42
-        label.modulate = Color("#F1EEE8")
-        label.outline_size = 8
-        label.outline_modulate = Color("#202326")
-        add_child(label)
-
 func _build_world() -> void:
     var environment := Environment.new()
     environment.background_mode = Environment.BG_COLOR
@@ -910,8 +478,7 @@ func _build_world() -> void:
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-55, -25, 0)
     sun.light_energy = 1.2
-    sun.shadow_enabled = false
-    sun.directional_shadow_max_distance = 32.0
+    sun.shadow_enabled = true
     add_child(sun)
     sun_light = sun
 
@@ -921,18 +488,13 @@ func _build_world() -> void:
     _building("Cafe", Vector3(-8, 1, 8), Color("#F1D2C4"), "Cafe")
     _building("School", Vector3(7, 1, 8), Color("#CADBED"), "School")
     _building("Mosque", Vector3(0, 1, -14), Color("#D9EAD5"), "Mosque")
-    _building("Government", Vector3(0, 1, 14), Color("#D1DCE8"), "City Hall")
-    _building("BusinessHub", Vector3(-14, 1, 14), Color("#E8D2B2"), "Business Hub")
-    _building("Hospital", Vector3(14, 1, -14), Color("#D9E8E8"), "Hospital")
-    _building("Community", Vector3(14, 1, 14), Color("#D7E5C8"), "Community Center")
+    _building("Government", Vector3(0, 1, 14), Color("#D1DCE8"), "Government")
     _building("Park", Vector3(14, 1, 0), Color("#B9DDB1"), "Park")
 
-    # Same city-grid idea, but 10 road meshes instead of 42 to reduce draw calls on mobile.
-    for x in range(-16, 17, 8):
-        _box("RoadNS", Vector3(x, -0.02, 0), Vector3(1.6, 0.06, 44), Color("#D7C9B7"))
-    for z in range(-16, 17, 8):
-        _box("RoadEW", Vector3(0, -0.01, z), Vector3(44, 0.06, 1.6), Color("#D7C9B7"))
-    _build_realistic_world()
+    for x in range(-20, 21, 4):
+        _box("Road", Vector3(x, -0.02, 0), Vector3(1.6, 0.06, 44), Color("#D7C9B7"))
+    for z in range(-20, 21, 4):
+        _box("Road", Vector3(0, -0.01, z), Vector3(44, 0.06, 1.6), Color("#D7C9B7"))
 
 func _build_navigation_grid() -> void:
     grid.region = Rect2i(-20, -20, 41, 41)
@@ -946,11 +508,7 @@ func _build_navigation_grid() -> void:
     grid.set_point_solid(Vector2i(-8, -6), false)
 
 func _is_building_cell(x: int, z: int) -> bool:
-    var blocks := [
-        Vector2(-8, -8), Vector2(7, -8), Vector2(-8, 8), Vector2(7, 8),
-        Vector2(0, -14), Vector2(0, 14), Vector2(-14, 14),
-        Vector2(14, -14), Vector2(14, 14), Vector2(14, 0)
-    ]
+    var blocks := [Vector2(-8, -8), Vector2(7, -8), Vector2(-8, 8), Vector2(7, 8), Vector2(0, -14), Vector2(0, 14), Vector2(14, 0)]
     for block in blocks:
         if abs(x - int(block.x)) <= 3 and abs(z - int(block.y)) <= 2:
             return true
@@ -967,9 +525,7 @@ func _spawn_player() -> void:
     mesh_node.mesh = capsule
     mesh_node.material_override = _mat(Color("#B18D9F"))
     mesh_node.position.y = 1
-    mesh_node.visible = false
     player.add_child(mesh_node)
-    _build_humanoid_visual(player, 0, true)
 
     var collision := CollisionShape3D.new()
     var capsule_shape := CapsuleShape3D.new()
@@ -980,158 +536,9 @@ func _spawn_player() -> void:
     player.add_child(collision)
 
     camera = Camera3D.new()
-    camera.current = true
-    camera.fov = 58.0
     camera.position = Vector3(8, 8, 10)
+    camera.current = true
     player.add_child(camera)
-    _update_camera_transform()
-
-
-func _add_building_facade(pos: Vector3, c: Color, building_id: String) -> void:
-    var accent := c.darkened(0.16)
-    # Door
-    _box(building_id + "_Door", pos + Vector3(0, 0.78, 2.04), Vector3(0.85, 1.55, 0.10), accent)
-    # Windows, two per visible side. They are emissive at night via environment contrast.
-    for side in [-1.0, 1.0]:
-        for i in range(2):
-            var x := -1.35 + float(i) * 2.7
-            _box(building_id + "_Window", pos + Vector3(x, 1.35, side * 2.04), Vector3(1.05, 0.75, 0.08), Color("#B9D8E5"))
-    var roof := _box(building_id + "_Roof", pos + Vector3(0, 2.72, 0), Vector3(5.25, 0.20, 4.25), accent)
-    roof.visibility_range_end = 50.0
-
-func _build_city_facades() -> void:
-    # Small residential blocks make the city read as a neighbourhood rather than ten isolated cubes.
-    var houses := [
-        Vector3(-16, 1.0, -11), Vector3(-11, 1.0, -11), Vector3(-6, 1.0, -11),
-        Vector3(9, 1.0, -11), Vector3(14, 1.0, -11),
-        Vector3(-16, 1.0, 3), Vector3(-11, 1.0, 3), Vector3(9, 1.0, 3)
-    ]
-    var palette := [Color("#E8D5C4"), Color("#D6E2D0"), Color("#D7D9E8"), Color("#E6D7B9")]
-    for i in range(houses.size()):
-        _box("HouseBlock_%d" % i, houses[i], Vector3(3.6, 2.0, 3.0), palette[i % palette.size()])
-        _add_building_facade(houses[i], palette[i % palette.size()], "House_%d" % i)
-
-func _build_street_furniture() -> void:
-    for x in range(-20, 21, 8):
-        _street_lamp(Vector3(float(x), 0, -3.2))
-        _street_lamp(Vector3(float(x), 0, 12.0))
-    for z in range(-20, 21, 8):
-        _street_lamp(Vector3(-3.2, 0, float(z)))
-        _street_lamp(Vector3(12.0, 0, float(z)))
-    # Sidewalk strips visually separate pedestrians from road lanes.
-    for x in [-20.0, -12.0, -4.0, 4.0, 12.0, 20.0]:
-        _box("Sidewalk", Vector3(x, 0.03, 0), Vector3(0.55, 0.08, 44), Color("#C8C4BB"))
-    for z in [-20.0, -12.0, -4.0, 4.0, 12.0, 20.0]:
-        _box("Sidewalk", Vector3(0, 0.04, z), Vector3(44, 0.08, 0.55), Color("#C8C4BB"))
-
-func _street_lamp(pos: Vector3) -> void:
-    var root := Node3D.new()
-    root.position = pos
-    add_child(root)
-    street_props.append(root)
-    var pole := MeshInstance3D.new()
-    var cylinder := CylinderMesh.new()
-    cylinder.height = 3.1
-    cylinder.top_radius = 0.05
-    cylinder.bottom_radius = 0.08
-    pole.mesh = cylinder
-    pole.material_override = _mat(Color("#3F4650"))
-    pole.position.y = 1.55
-    root.add_child(pole)
-    var lamp := OmniLight3D.new()
-    lamp.light_energy = 0.35
-    lamp.omni_range = 5.0
-    lamp.shadow_enabled = false
-    lamp.position.y = 3.05
-    root.add_child(lamp)
-
-func _build_greenery() -> void:
-    var trees := [
-        Vector3(-20,0,-20), Vector3(-20,0,-4), Vector3(-20,0,20),
-        Vector3(-4,0,-20), Vector3(4,0,-20), Vector3(20,0,-20),
-        Vector3(20,0,-4), Vector3(20,0,4), Vector3(20,0,20),
-        Vector3(-4,0,20), Vector3(4,0,20), Vector3(-20,0,20)
-    ]
-    for i in range(trees.size()):
-        _tree(trees[i], 0.85 + float(i % 3) * 0.10)
-
-func _tree(pos: Vector3, scale_factor: float) -> void:
-    var root := Node3D.new()
-    root.position = pos
-    root.scale = Vector3.ONE * scale_factor
-    add_child(root)
-    street_props.append(root)
-    var trunk := MeshInstance3D.new()
-    var cyl := CylinderMesh.new()
-    cyl.height = 1.7
-    cyl.top_radius = 0.16
-    cyl.bottom_radius = 0.23
-    trunk.mesh = cyl
-    trunk.material_override = _mat(Color("#765A43"))
-    trunk.position.y = 0.85
-    root.add_child(trunk)
-    var crown := MeshInstance3D.new()
-    var sphere := SphereMesh.new()
-    sphere.height = 2.2
-    sphere.radius = 1.05
-    crown.mesh = sphere
-    crown.material_override = _mat(Color("#6E9B6B"))
-    crown.position.y = 2.15
-    root.add_child(crown)
-
-func _build_vehicles() -> void:
-    var car_positions := [
-        Vector3(-10,0.35,-4), Vector3(10,0.35,4), Vector3(4,0.35,-12), Vector3(-4,0.35,12)
-    ]
-    for i in range(car_positions.size()):
-        _vehicle(car_positions[i], i % 2 == 0)
-
-func _vehicle(pos: Vector3, rotated: bool) -> void:
-    var root := Node3D.new()
-    root.position = pos
-    if rotated:
-        root.rotation.y = PI * 0.5
-    add_child(root)
-    street_props.append(root)
-    _box_child(root, Vector3(0,0.35,0), Vector3(1.8,0.55,3.2), Color("#596C7A"))
-    for x in [-0.68, 0.68]:
-        for z in [-1.0, 1.0]:
-            var wheel := MeshInstance3D.new()
-            var cyl := CylinderMesh.new()
-            cyl.height = 0.18
-            cyl.top_radius = 0.25
-            cyl.bottom_radius = 0.25
-            wheel.mesh = cyl
-            wheel.material_override = _mat(Color("#25282B"))
-            wheel.rotation_degrees.x = 90
-            wheel.position = Vector3(x,0.25,z)
-            root.add_child(wheel)
-
-func _box_child(parent: Node3D, pos: Vector3, size: Vector3, c: Color) -> void:
-    var node := MeshInstance3D.new()
-    var mesh := BoxMesh.new()
-    mesh.size = size
-    node.mesh = mesh
-    node.material_override = _mat(c)
-    node.position = pos
-    parent.add_child(node)
-
-func _build_location_markers() -> void:
-    var markers := [
-        ["AGAMA", Vector3(0,3.9,-14), Color("#6C9270")],
-        ["BISNIS", Vector3(-14,3.0,14), Color("#9A7749")],
-        ["POLITIK", Vector3(0,3.0,14), Color("#647C9C")],
-        ["PASAR", Vector3(7,3.0,-8), Color("#8C6A83")]
-    ]
-    for item in markers:
-        var label := Label3D.new()
-        label.text = item[0]
-        label.font_size = 38
-        label.modulate = item[2]
-        label.outline_size = 8
-        label.position = item[1]
-        add_child(label)
-        detail_labels.append(label)
 
 func _spawn_npcs() -> void:
     var home_positions := [
@@ -1154,18 +561,14 @@ func _spawn_npcs() -> void:
         capsule.radius = 0.35
         npc_node.mesh = capsule
         npc_node.material_override = _mat(Color.from_hsv(float(i) / float(npc_names.size()), 0.25, 0.9))
-        npc_node.visible = false
         npc_node.position = home_positions[i % home_positions.size()]
         add_child(npc_node)
-        _build_humanoid_visual(npc_node, i, false)
 
         var occupation: String = occupations[i % occupations.size()]
         var home_target: Vector2 = Vector2(home_positions[i].x, home_positions[i].z)
         var npc := {
             "name": npc_names[i],
             "node": npc_node,
-            "visual_root": npc_node.get_node_or_null("HumanoidVisual"),
-            "anim_phase": float(i) * 0.61,
             "money": 70.0 + i * 18,
             "opinion": 45.0 + i,
             "relationship": 0.0,
@@ -1186,12 +589,6 @@ func _spawn_npcs() -> void:
             "political_affinity": ["business", "workers", "youth", "public", "community"][i % 5],
             "memory": [],
             "last_interaction_day": 0,
-            "family_id": i % 4,
-            "household_size": 2 + (i % 4),
-            "income": 65.0 + i * 12.0,
-            "faith_practice": 45.0 + (i % 5) * 8.0,
-            "business_interest": 30.0 + (i % 6) * 7.0,
-            "civic_interest": 35.0 + (i % 5) * 9.0,
         }
         npcs.append(npc)
     _refresh_npc_schedules()
@@ -1274,8 +671,6 @@ func _update_npcs(delta: float) -> void:
     for npc in npcs:
         var node: MeshInstance3D = npc["node"]
         var points: Array = npc_path.get(npc["name"], [])
-        var moving := not points.is_empty()
-        _animate_humanoid(npc.get("visual_root"), moving, delta, float(npc.get("anim_phase", 0.0)))
         if points.is_empty():
             npc["repath_in"] = float(npc.get("repath_in", 0.0)) - delta
             if float(npc["repath_in"]) <= 0.0:
@@ -1316,8 +711,7 @@ func _move_player(delta: float) -> void:
             "Bus": move_speed = 5.4
         player.velocity = Vector3(input.x * move_speed, player.velocity.y, input.y * move_speed)
         player.move_and_slide()
-        world_dirty = true
-        _update_camera_transform()
+        camera.look_at(player.global_position + Vector3(0, 1, 0))
         energy = clamp(energy - delta * 0.45, 0.0, 100.0)
         skills["Fitness"] = clamp(float(skills["Fitness"]) + delta * 0.004, 0.0, 100.0)
     else:
@@ -1334,20 +728,6 @@ func _move_player(delta: float) -> void:
     player.position.y = 0.0
 
 func _new_day() -> void:
-    var completed_prayers := int(religious_state.get("prayers_today", 0))
-    if completed_prayers >= 4:
-        religious_state["prayer_streak"] = int(religious_state.get("prayer_streak", 0)) + 1
-        religious_state["faith"] = clamp(float(religious_state["faith"]) + 1.0, 0.0, 100.0)
-    elif completed_prayers > 0:
-        religious_state["prayer_streak"] = 0
-    else:
-        religious_state["prayer_streak"] = 0
-    religious_state["prayers_today"] = 0
-    for key in prayer_flags.keys():
-        prayer_flags[key] = false
-    religious_state["fasting_today"] = false
-    _update_religious_calendar()
-
     _simulate_world_day()
     _simulate_npcs_day()
     _simulate_business_day()
@@ -1370,8 +750,7 @@ func _new_day() -> void:
     _update_boredom_daily()
     weather = ["Sunny", "Cloudy", "Rain", "Sunny", "Windy"].pick_random()
     world_revision += 1
-    world_dirty = true
-    _save_world(true)
+    _save_world()
 
 func _simulate_world_day() -> void:
     var inflation := float(world_economy["inflation"])
@@ -1412,7 +791,7 @@ func _simulate_world_day() -> void:
         5.0, 100.0
     )
     business_confidence = clamp(
-        business_confidence + (confidence - 50.0) * 0.035 - float(political_state["political_heat"]) * 0.025 - float(world_economy["market_volatility"]) * 0.018 + productivity_bonus * 0.18 + (float(religious_state["community"]) - 50.0) * 0.015 + randf_range(-1.8, 1.8),
+        business_confidence + (confidence - 50.0) * 0.035 - float(political_state["political_heat"]) * 0.025 - float(world_economy["market_volatility"]) * 0.018 + productivity_bonus * 0.18 + randf_range(-1.8, 1.8),
         5.0, 100.0
     )
 
@@ -1503,15 +882,7 @@ func _simulate_business_day() -> void:
         _: strategy_factor = 1.0
     var marketing_factor := 1.0 + float(business_state["marketing"]) / 500.0
     var demand_factor := 0.70 + float(world_economy["consumer_confidence"]) / 170.0
-    var ethics_factor := 1.0
-    match String(business_state.get("ethics_mode", "Fair & Halal")):
-        "Fair & Halal":
-            ethics_factor = 0.99 + float(business_state["halal_integrity"]) * 0.002
-        "Competitive":
-            ethics_factor = 1.02
-        "Aggressive":
-            ethics_factor = 1.07 - float(business_state["halal_integrity"]) * 0.0015
-    var gross: float = (35.0 + float(skills["Business"]) * 2.0 + public_support * 0.2) * level_factor * sector_factor * strategy_factor * marketing_factor * demand_factor * ethics_factor
+    var gross: float = (35.0 + float(skills["Business"]) * 2.0 + public_support * 0.2) * level_factor * sector_factor * strategy_factor * marketing_factor * demand_factor
     var supplier_cost := maxf(2.0, 7.0 - float(business_state["supplier_quality"]) * 0.03)
     var personal_cost: float = float(own_business["maintenance"]) + float(own_business["employees"]) * 8.0
     var stock_cost: float = min(gross * 0.38, float(stock) * supplier_cost)
@@ -1521,13 +892,7 @@ func _simulate_business_day() -> void:
     own_business["capital"] = max(0.0, float(own_business["capital"]) + personal_profit)
     own_business["reputation"] = clamp(float(own_business["reputation"]) + personal_profit * 0.008 + (business_state["customer_trust"] - 50.0) * 0.01, 0.0, 100.0)
     business_state["growth_points"] = max(0.0, float(business_state["growth_points"]) + max(0.0, personal_profit) * 0.12)
-    var ethics_mode := String(business_state.get("ethics_mode", "Fair & Halal"))
-    business_state["customer_trust"] = clamp(float(business_state["customer_trust"]) + (6.0 if ethics_mode == "Fair & Halal" else 2.0 if ethics_mode == "Competitive" else -2.0) - float(business_state["competitive_pressure"]) * 0.05 + randf_range(-1.0, 1.0), 0.0, 100.0)
-    business_state["halal_integrity"] = clamp(float(business_state.get("halal_integrity", 88.0)) + (0.8 if ethics_mode == "Fair & Halal" else -0.15 if ethics_mode == "Competitive" else -1.2), 0.0, 100.0)
-    if ethics_mode == "Fair & Halal":
-        religious_state["community"] = clamp(float(religious_state["community"]) + 0.15, 0.0, 100.0)
-    elif ethics_mode == "Aggressive":
-        reputation = max(0.0, reputation - 0.15)
+    business_state["customer_trust"] = clamp(float(business_state["customer_trust"]) + (5.0 - float(business_state["competitive_pressure"]) * 0.05) + randf_range(-1.0, 1.0), 0.0, 100.0)
     business_state["competitive_pressure"] = clamp(float(business_state["competitive_pressure"]) + city_state["business_density"] * 0.01 - 0.4, 0.0, 100.0)
     money += max(0.0, business_revenue) * 0.10
     government_budget += max(0.0, business_revenue) * tax_rate
@@ -1547,8 +912,6 @@ func _update_political_cycle() -> void:
     if policies["small_business"]: policy_cost += 55.0
     if policies["education_fund"]: policy_cost += 75.0
     if policies["public_transport"]: policy_cost += 95.0
-    if policies.get("market_fairness", false): policy_cost += 65.0
-    if policies.get("community_health", false): policy_cost += 85.0
     var treasury := float(government_budget)
     if policy_cost > treasury:
         political_state["policy_debt"] = clamp(float(political_state["policy_debt"]) + (policy_cost - treasury) * 0.08, 0.0, 100.0)
@@ -1563,10 +926,6 @@ func _update_political_cycle() -> void:
         implementation_quality += float(factions["workers"] + factions["youth"]) * 0.01
     if policies["public_transport"]:
         implementation_quality += float(city_state["transport_quality"]) * 0.02
-    if policies.get("market_fairness", false):
-        implementation_quality += float(business_state["customer_trust"]) * 0.018
-    if policies.get("community_health", false):
-        implementation_quality += float(religious_state["community"]) * 0.018
     implementation_quality -= float(political_state["policy_debt"]) * 0.25
 
     political_state["consultation"] = clamp(
@@ -1656,10 +1015,6 @@ func _generate_dynamic_event() -> void:
         candidates.append({"id": "community_project", "score": 55.0 + float(political_state["trust"]) * 0.25 + pressure_bonus, "text": "Komunitas membuka proyek kecil yang bisa memperkuat kepercayaan."})
     if float(city_state["public_order"]) <= 50.0 and _can_trigger_event("public_order", 5):
         candidates.append({"id": "public_order", "score": 66.0 + (50.0 - float(city_state["public_order"])) * 1.8, "text": "Gangguan ketertiban memaksa pemerintah menentukan prioritas layanan."})
-    if bool(religious_state.get("is_ramadan", false)) and _can_trigger_event("ramadan_market", 6):
-        candidates.append({"id": "ramadan_market", "score": 62.0 + float(religious_state["community"]) * 0.25, "text": "Bulan Ramadan menghidupkan pasar, kegiatan sosial, dan agenda komunitas."})
-    if float(religious_state.get("community", 50.0)) >= 65.0 and _can_trigger_event("community_charity", 8):
-        candidates.append({"id": "community_charity", "score": 55.0 + float(religious_state["community"]) * 0.35, "text": "Komunitas menggalang bantuan untuk warga yang membutuhkan."})
     if float(world_economy["supply_stability"]) <= 55.0 and _can_trigger_event("supply_shock", 7):
         candidates.append({"id": "supply_shock", "score": 64.0 + (55.0 - float(world_economy["supply_stability"])) * 1.5, "text": "Rantai pasok terganggu. Harga dan strategi bisnis perlu disesuaikan."})
     if not recent_events.is_empty():
@@ -1739,15 +1094,6 @@ func _apply_dynamic_event(event_id: String) -> void:
             political_state["policy_approval"] = clamp(float(political_state["policy_approval"]) - 6.0, 0.0, 100.0)
             political_state["consultation"] = clamp(float(political_state["consultation"]) + 8.0, 0.0, 100.0)
             reputation = max(0.0, reputation - 1.0)
-        "ramadan_market":
-            market_sentiment = clamp(market_sentiment + 6.0, 0.0, 100.0)
-            world_economy["city_activity"] = clamp(float(world_economy["city_activity"]) + 4.0, 0.0, 100.0)
-            religious_state["community"] = clamp(float(religious_state["community"]) + 2.0, 0.0, 100.0)
-        "community_charity":
-            religious_state["community"] = clamp(float(religious_state["community"]) + 4.0, 0.0, 100.0)
-            city_state["services"] = clamp(float(city_state["services"]) + 1.5, 0.0, 100.0)
-            political_state["trust"] = clamp(float(political_state["trust"]) + 2.0, 0.0, 100.0)
-            active_opportunity = {"id": "community_aid", "title": "Aksi bantuan warga", "kind": "community", "expires": day + 3}
 
 func _normalize_dynamic_state() -> void:
     if typeof(world_economy) != TYPE_DICTIONARY:
@@ -1759,42 +1105,6 @@ func _normalize_dynamic_state() -> void:
         world_economy[key] = float(world_economy[key])
     for key in factions.keys():
         factions[key] = clamp(float(factions[key]), 0.0, 100.0)
-    var religious_defaults := {"faith": 60.0, "religion_knowledge": 5.0, "community": 50.0, "prayers_today": 0, "prayer_total": 0, "prayer_streak": 0, "charity_total": 0.0, "zakat_total": 0.0, "last_zakat_day": -999, "fasting_today": false, "calendar_day": 1, "calendar_month": 1, "is_ramadan": false}
-    if typeof(religious_state) != TYPE_DICTIONARY:
-        religious_state = religious_defaults.duplicate(true)
-    for key in religious_defaults.keys():
-        if not religious_state.has(key): religious_state[key] = religious_defaults[key]
-    religious_state["faith"] = clamp(float(religious_state["faith"]), 0.0, 100.0)
-    religious_state["religion_knowledge"] = clamp(float(religious_state["religion_knowledge"]), 0.0, 100.0)
-    religious_state["community"] = clamp(float(religious_state["community"]), 0.0, 100.0)
-    religious_state["prayers_today"] = clampi(int(religious_state["prayers_today"]), 0, 5)
-    religious_state["prayer_total"] = max(0, int(religious_state["prayer_total"]))
-    religious_state["prayer_streak"] = max(0, int(religious_state["prayer_streak"]))
-    religious_state["charity_total"] = max(0.0, float(religious_state["charity_total"]))
-    religious_state["zakat_total"] = max(0.0, float(religious_state["zakat_total"]))
-    religious_state["last_zakat_day"] = int(religious_state["last_zakat_day"])
-    religious_state["fasting_today"] = bool(religious_state["fasting_today"])
-    _update_religious_calendar()
-    if typeof(prayer_flags) != TYPE_DICTIONARY:
-        prayer_flags = {"Subuh": false, "Dzuhur": false, "Ashar": false, "Maghrib": false, "Isya": false}
-    for key in ["Subuh", "Dzuhur", "Ashar", "Maghrib", "Isya"]:
-        prayer_flags[key] = bool(prayer_flags.get(key, false))
-
-    var career_defaults := {"rank": "Citizen", "organization": "Independent", "years_active": 0, "public_service": 0.0, "policy_wins": 0, "constituency": 50.0, "integrity": 82.0}
-    for key in career_defaults.keys():
-        if not political_career.has(key): political_career[key] = career_defaults[key]
-    political_career["public_service"] = clamp(float(political_career["public_service"]), 0.0, 100.0)
-    political_career["constituency"] = clamp(float(political_career["constituency"]), 0.0, 100.0)
-    political_career["integrity"] = clamp(float(political_career["integrity"]), 0.0, 100.0)
-    for key in enterprise_state.keys():
-        enterprise_state[key] = float(enterprise_state[key])
-    enterprise_state["employees"] = max(0, int(enterprise_state["employees"]))
-    enterprise_state["supplier_reliability"] = clamp(float(enterprise_state["supplier_reliability"]), 0.0, 100.0)
-    for key in civic_state.keys():
-        civic_state[key] = clamp(float(civic_state[key]), 0.0, 100.0)
-    for key in religious_calendar_state.keys():
-        if key != "eid_ready": religious_calendar_state[key] = float(religious_calendar_state[key])
-    religious_calendar_state["eid_ready"] = bool(religious_calendar_state["eid_ready"])
     var political_defaults := {"coalition_strength": 35.0, "policy_debt": 0.0, "consultation": 20.0}
     for key in political_defaults.keys():
         if not political_state.has(key): political_state[key] = political_defaults[key]
@@ -1887,125 +1197,6 @@ func _simulate_npcs_day() -> void:
             a["social_need"] = max(0.0, float(a.get("social_need", 25.0)) - 5.0)
             b["social_need"] = max(0.0, float(b.get("social_need", 25.0)) - 5.0)
 
-
-func _simulate_living_city(_dt: float) -> void:
-    # Continuous causal chain: supply -> production -> wages -> households -> tax -> services -> trust.
-    var supplier := float(enterprise_state["supplier_reliability"])
-    var capacity := float(enterprise_state["production_capacity"])
-    var demand_index := float(world_economy["consumer_confidence"]) / 100.0
-    var output := capacity * (supplier / 100.0) * demand_index
-    enterprise_state["production_capacity"] = clamp(capacity + (float(business_state["supplier_quality"]) - 70.0) * 0.002, 8.0, 200.0)
-    enterprise_state["supplier_reliability"] = clamp(supplier + (float(world_economy["supply_stability"]) - supplier) * 0.004, 30.0, 100.0)
-    enterprise_state["market_share"] = clamp(float(enterprise_state["market_share"]) + (output - 12.0) * 0.001, 0.5, 35.0)
-
-    if own_business["owned"] and own_business["open"]:
-        var wage := float(world_economy["wage_index"]) * 0.12 * float(own_business["employees"])
-        var revenue: float = maxf(0.0, output * 0.35 * (float(own_business["level"]) + 0.5))
-        var operating_cost := float(own_business["maintenance"]) + wage
-        var profit := revenue - operating_cost
-        enterprise_state["wage_bill"] = wage
-        enterprise_state["monthly_profit"] = profit
-        business_revenue = profit
-        var tax: float = maxf(0.0, profit) * tax_rate
-        enterprise_state["monthly_tax_paid"] = tax
-        government_budget += tax * 0.02
-        own_business["capital"] = max(0.0, float(own_business["capital"]) + profit * 0.005)
-        business_state["customer_trust"] = clamp(float(business_state["customer_trust"]) + (float(business_state["halal_integrity"]) - 75.0) * 0.001, 0.0, 100.0)
-
-    civic_state["services"] = clamp(float(civic_state["services"]) + (float(government_budget) / 5000.0 - 1.0) * 0.002, 20.0, 100.0)
-    civic_state["safety"] = clamp(float(civic_state["safety"]) + (float(city_state["public_order"]) - float(civic_state["safety"])) * 0.002, 20.0, 100.0)
-    public_support = clamp(public_support + (float(civic_state["services"]) - 60.0) * 0.002 + (float(religious_state["community"]) - 50.0) * 0.001, 0.0, 100.0)
-
-    for npc in npcs:
-        var affordability := 100.0 - float(world_economy["household_pressure"])
-        npc["income"] = max(20.0, float(npc.get("income", 70.0)) * (0.999 + (float(world_economy["wage_index"]) - 100.0) * 0.00003))
-        npc["mood"] = clamp(float(npc["mood"]) + (affordability - 60.0) * 0.0008, 0.0, 100.0)
-        npc["opinion"] = clamp(float(npc["opinion"]) + (public_support - 50.0) * 0.0008, 0.0, 100.0)
-
-func _advance_political_career() -> void:
-    var integrity := float(political_career["integrity"])
-    var service := float(political_career["public_service"]) + 4.0
-    var trust := float(political_state["trust"])
-    political_career["public_service"] = clamp(service, 0.0, 100.0)
-    political_state["influence"] = clamp(float(political_state["influence"]) + 2.0, 0.0, 100.0)
-    political_state["political_capital"] = clamp(float(political_state["political_capital"]) + 2.5, 0.0, 100.0)
-    political_state["trust"] = clamp(trust + (integrity - 70.0) * 0.05 + 0.8, 0.0, 100.0)
-    if service >= 70.0:
-        political_career["rank"] = "Community Leader"
-    elif service >= 40.0:
-        political_career["rank"] = "Organizer"
-    else:
-        political_career["rank"] = "Citizen"
-    interaction_message = "Karier politik: %s · pelayanan %.0f · trust %.0f." % [political_career["rank"], service, political_state["trust"]]
-
-func _simulate_public_budget() -> void:
-    var allocation := 0.0
-    if policies["education_fund"]:
-        allocation += 90.0
-        civic_state["education"] = clamp(float(civic_state["education"]) + 1.5, 0.0, 100.0)
-    if policies["community_health"]:
-        allocation += 80.0
-        civic_state["health"] = clamp(float(civic_state["health"]) + 1.5, 0.0, 100.0)
-    if policies["public_transport"]:
-        allocation += 100.0
-        civic_state["mobility"] = clamp(float(civic_state["mobility"]) + 1.5, 0.0, 100.0)
-    government_budget = max(0.0, government_budget - allocation)
-    city_state["services"] = clamp((float(civic_state["education"]) + float(civic_state["health"]) + float(civic_state["mobility"])) / 3.0, 0.0, 100.0)
-    political_state["policy_approval"] = clamp(political_state["policy_approval"] + (float(city_state["services"]) - 60.0) * 0.08, 0.0, 100.0)
-    interaction_message = "Anggaran publik disimulasikan: layanan %.0f · approval %.0f." % [city_state["services"], political_state["policy_approval"]]
-
-func _manage_employees() -> void:
-    if not own_business["owned"]:
-        own_business["owned"] = true
-        own_business["open"] = true
-        own_business["capital"] = max(float(own_business["capital"]), 100.0)
-    var max_workers := 1 + int(own_business["level"]) * 2
-    if int(own_business["employees"]) < max_workers and money >= 20.0:
-        own_business["employees"] += 1
-        enterprise_state["employees"] = own_business["employees"]
-        money -= 20.0
-        reputation = clamp(reputation + 0.8, 0.0, 100.0)
-        interaction_message = "Karyawan direkrut. Tim: %d/%d." % [own_business["employees"], max_workers]
-    else:
-        interaction_message = "Tim optimal: %d/%d atau modal belum cukup." % [own_business["employees"], max_workers]
-
-func _manage_supply_chain() -> void:
-    var cost := 18.0 + float(own_business["level"]) * 4.0
-    if money >= cost:
-        money -= cost
-        enterprise_state["supplier_reliability"] = clamp(float(enterprise_state["supplier_reliability"]) + 7.0, 0.0, 100.0)
-        business_state["supplier_quality"] = clamp(float(business_state["supplier_quality"]) + 3.0, 0.0, 100.0)
-        own_business["stock"] += 6
-        interaction_message = "Rantai pasok diperkuat: stok +6, reliabilitas %.0f." % enterprise_state["supplier_reliability"]
-    else:
-        interaction_message = "Modal belum cukup untuk kontrak pemasok."
-
-func _waqf_action() -> void:
-    var amount := minf(30.0, money)
-    if amount <= 0.0:
-        interaction_message = "Belum ada dana untuk simulasi wakaf."
-        return
-    money -= amount
-    religious_calendar_state["waqf_total"] = float(religious_calendar_state["waqf_total"]) + amount
-    religious_state["community"] = clamp(float(religious_state["community"]) + 2.0, 0.0, 100.0)
-    civic_state["services"] = clamp(float(civic_state["services"]) + 0.4, 0.0, 100.0)
-    interaction_message = "Dana fasilitas komunitas +$%.0f. Total wakaf simulasi $%.0f." % [amount, religious_calendar_state["waqf_total"]]
-
-func _emit_world_state() -> void:
-    var payload := {
-        "version": 1,
-        "type": "WORLD_STATE",
-        "day": day,
-        "money": snapped(money, 0.1),
-        "business_profit": snapped(float(enterprise_state["monthly_profit"]), 0.1),
-        "political_rank": political_career["rank"],
-        "political_trust": snapped(float(political_state["trust"]), 0.1),
-        "faith": snapped(float(religious_state["faith"]), 0.1),
-        "community": snapped(float(religious_state["community"]), 0.1),
-        "services": snapped(float(civic_state["services"]), 0.1),
-    }
-    _emit_android_event("WORLD_STATE", "Zahra World State", JSON.stringify(payload))
-
 func _update_market() -> void:
     market_sentiment = clamp((market_sentiment * 0.72) + float(world_economy["consumer_confidence"]) * 0.18 + float(world_economy["business_confidence"]) * 0.10 + randf_range(-2.5, 2.5), 0.0, 100.0)
     var inflation_factor := 1.0 + (float(world_economy["inflation"]) - 3.0) * 0.012
@@ -2040,71 +1231,64 @@ func _build_hud() -> void:
     hud.add_child(root)
 
     var panel := ColorRect.new()
-    panel.color = Color(0.04, 0.055, 0.065, 0.86)
-    panel.position = Vector2(10, 10)
-    var viewport_width := get_viewport().get_visible_rect().size.x
-    var width := minf(700.0, viewport_width - 20.0)
-    panel.size = Vector2(maxf(320.0, width), 228)
+    panel.color = Color(0.05, 0.07, 0.08, 0.80)
+    panel.position = Vector2(12, 12)
+    var width := minf(680.0, get_viewport().get_visible_rect().size.x - 24.0)
+    panel.size = Vector2(maxf(300.0, width), 242)
     root.add_child(panel)
 
     status_label = Label.new()
     status_label.position = Vector2(12, 8)
     status_label.add_theme_font_size_override("font_size", 13)
-    status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    status_label.size = Vector2(panel.size.x - 24, 150)
     panel.add_child(status_label)
 
     perf_label = Label.new()
-    perf_label.position = Vector2(12, 170)
-    perf_label.add_theme_font_size_override("font_size", 9)
+    perf_label.position = Vector2(12, 187)
+    perf_label.add_theme_font_size_override("font_size", 10)
     panel.add_child(perf_label)
 
     message_label = Label.new()
-    message_label.position = Vector2(12, 190)
-    message_label.add_theme_font_size_override("font_size", 12)
-    message_label.size = Vector2(panel.size.x - 24, 32)
-    message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    message_label.position = Vector2(12, 203)
+    message_label.add_theme_font_size_override("font_size", 14)
     panel.add_child(message_label)
 
-    var tabs := HBoxContainer.new()
-    tabs.position = Vector2(10, 246)
-    tabs.size = Vector2(minf(700.0, viewport_width - 20.0), 40)
-    root.add_child(tabs)
-    var categories := [
-        ["life", "KEHIDUPAN"],
-        ["religion", "AGAMA"],
-        ["business", "BISNIS"],
-        ["politics", "POLITIK"],
-    ]
-    for item in categories:
-        var tab := Button.new()
-        tab.text = item[1]
-        tab.custom_minimum_size = Vector2(0, 38)
-        tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-        var category_id: String = item[0]
-        tab.pressed.connect(func() -> void:
-            current_action_category = category_id
-            _rebuild_action_buttons()
-        )
-        tabs.add_child(tab)
-
-    action_category_label = Label.new()
-    action_category_label.position = Vector2(12, 290)
-    action_category_label.add_theme_font_size_override("font_size", 12)
-    root.add_child(action_category_label)
-
     var scroll := ScrollContainer.new()
-    scroll.position = Vector2(10, 308)
-    scroll.size = Vector2(minf(430.0, viewport_width - 20.0), minf(400.0, get_viewport().get_visible_rect().size.y - 485.0))
-    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    scroll.position = Vector2(12, 240)
+    scroll.size = Vector2(minf(390.0, width), minf(470.0, get_viewport().get_visible_rect().size.y - 260.0))
     root.add_child(scroll)
+    var actions := GridContainer.new()
+    actions.columns = 2
+    actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    scroll.add_child(actions)
 
-    action_container = GridContainer.new()
-    action_container.columns = 2
-    action_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    scroll.add_child(action_container)
-
-    _rebuild_action_buttons()
+    var action_list := [
+        ["Makan", "eat"], ["Mandi", "wash"],
+        ["Pilih Kerja", "job"], ["Kerja", "work"],
+        ["Belajar", "study"],
+        ["Masak", "cook"], ["Berkebun", "garden"],
+        ["Beli", "buy"], ["Jual", "sell"],
+        ["Negosiasi", "negotiate"], ["Ngobrol", "social"],
+        ["Forum Publik", "forum"], ["Debat", "debate"],
+        ["Usulkan Kebijakan", "proposal"], ["Kebijakan", "policy"],
+        ["Pemilu", "election"], ["Bangun Usaha", "business"],
+        ["Stok Usaha", "restock_business"], ["Upgrade Usaha", "upgrade_business"],
+        ["Sektor Usaha", "business_sector"], ["Strategi Harga", "business_strategy"],
+        ["Deal Bisnis", "business_deal"], ["Riset Pasar", "market_research"],
+        ["Forum Warga", "community"], ["Strategi Politik", "political_strategy"],
+        ["Kampanye", "campaign"], ["Ambil Peluang", "opportunity"],
+        ["Bank +$20", "deposit"], ["Tarik Bank", "withdraw"],
+        ["Investasi $50", "invest"], ["Tarik Investasi", "withdraw_investment"],
+        ["Transportasi", "transport"], ["Upgrade Rumah", "home_upgrade"],
+        ["Istirahat", "rest"], ["Tidur", "sleep"],
+        ["Simpan", "save"], ["Muat", "load"],
+    ]
+    for entry in action_list:
+        var button := Button.new()
+        button.text = entry[0]
+        button.custom_minimum_size = Vector2(175, 42)
+        var action_name: String = entry[1]
+        button.pressed.connect(func() -> void: _action(action_name))
+        actions.add_child(button)
 
     var touch := GridContainer.new()
     touch.columns = 3
@@ -2112,10 +1296,10 @@ func _build_hud() -> void:
     touch.anchor_right = 1.0
     touch.anchor_top = 1.0
     touch.anchor_bottom = 1.0
-    touch.offset_left = -250.0
-    touch.offset_top = -150.0
-    touch.offset_right = -12.0
-    touch.offset_bottom = -14.0
+    touch.offset_left = -260.0
+    touch.offset_top = -155.0
+    touch.offset_right = -20.0
+    touch.offset_bottom = -23.0
     root.add_child(touch)
     _touch_button(touch, "↖", Vector2(-1, -1))
     _touch_button(touch, "↑", Vector2(0, -1))
@@ -2127,66 +1311,6 @@ func _build_hud() -> void:
     _touch_button(touch, "↓", Vector2(0, 1))
     _touch_button(touch, "↘", Vector2(1, 1))
 
-func _action_entries_for_category(category: String) -> Array:
-    match category:
-        "religion":
-            return [
-                ["Interaksi Lokasi", "interact"], ["Salat / Ibadah", "pray"],
-                ["Belajar Agama", "religion_study"], ["Kegiatan Masjid", "mosque_event"],
-                ["Aksi Sosial", "charity"], ["Wakaf / Fasilitas", "waqf"], ["Zakat (Simulasi)", "zakat"],
-                ["Puasa Ramadan", "fasting"],
-            ]
-        "business":
-            return [
-                ["Interaksi Lokasi", "interact"], ["Bangun / Buka Usaha", "business"],
-                ["Stok Usaha", "restock_business"], ["Upgrade Usaha", "upgrade_business"],
-                ["Sektor Usaha", "business_sector"], ["Strategi Harga", "business_strategy"],
-                ["Etika Operasi", "business_ethics"], ["Kelola Karyawan", "employees"], ["Rantai Pasok", "supply_chain"], ["Deal Bisnis", "business_deal"],
-                ["Riset Pasar", "market_research"], ["Negosiasi", "negotiate"],
-                ["Ambil Peluang", "opportunity"], ["Investasi $50", "invest"],
-                ["Tarik Investasi", "withdraw_investment"],
-            ]
-        "politics":
-            return [
-                ["Interaksi Lokasi", "interact"], ["Forum Publik", "forum"],
-                ["Debat", "debate"], ["Usulan Kebijakan", "proposal"],
-                ["Kebijakan", "policy"], ["Pemilu Fiktif", "election"],
-                ["Forum Warga", "community"], ["Strategi Politik", "political_strategy"],
-                ["Kampanye", "campaign"], ["Jenjang Karier Politik", "political_career"], ["Simulasi Anggaran", "budget_policy"], ["Ambil Peluang", "opportunity"],
-            ]
-        _:
-            return [
-                ["Interaksi Lokasi", "interact"], ["Makan", "eat"],
-                ["Mandi", "wash"], ["Pilih Kerja", "job"], ["Kerja", "work"],
-                ["Belajar", "study"], ["Masak", "cook"], ["Berkebun", "garden"],
-                ["Beli", "buy"], ["Jual", "sell"], ["Ngobrol", "social"],
-                ["Transportasi", "transport"], ["Upgrade Rumah", "home_upgrade"],
-                ["Bank +$20", "deposit"], ["Tarik Bank", "withdraw"],
-                ["Istirahat", "rest"], ["Tidur", "sleep"],
-                ["Simpan", "save"], ["Muat", "load"],
-            ]
-
-func _rebuild_action_buttons() -> void:
-    if action_container == null:
-        return
-    for child in action_container.get_children():
-        child.queue_free()
-    var names := {
-        "life": "Kehidupan pribadi",
-        "religion": "Agama & komunitas",
-        "business": "Bisnis & ekonomi",
-        "politics": "Politik & pemerintahan",
-    }
-    action_category_label.text = "MENU · %s" % String(names.get(current_action_category, "Kehidupan"))
-    for entry in _action_entries_for_category(current_action_category):
-        var button := Button.new()
-        button.text = entry[0]
-        button.custom_minimum_size = Vector2(190, 44)
-        button.focus_mode = Control.FOCUS_NONE
-        var action_name: String = entry[1]
-        button.pressed.connect(func() -> void: _action(action_name))
-        action_container.add_child(button)
-
 func _touch_button(parent: Container, text: String, vector: Vector2) -> void:
     var button := Button.new()
     button.text = text
@@ -2195,165 +1319,9 @@ func _touch_button(parent: Container, text: String, vector: Vector2) -> void:
     button.button_down.connect(func() -> void: touch_vector = vector)
     button.button_up.connect(func() -> void: touch_vector = Vector2.ZERO)
 
-func _prayer_action() -> void:
-    var prayer_name := _nearest_prayer_name()
-    if prayer_name.is_empty():
-        religious_state["faith"] = clamp(float(religious_state["faith"]) + 0.35, 0.0, 100.0)
-        interaction_message = "Ibadah pribadi dilakukan. Untuk simulasi salat, gunakan waktu yang dekat dengan jadwal salat."
-        return
-    if bool(prayer_flags.get(prayer_name, false)):
-        interaction_message = "%s sudah tercatat hari ini." % prayer_name
-        return
-    prayer_flags[prayer_name] = true
-    religious_state["prayers_today"] = int(religious_state["prayers_today"]) + 1
-    religious_state["prayer_total"] = int(religious_state["prayer_total"]) + 1
-    religious_state["faith"] = clamp(float(religious_state["faith"]) + 2.5, 0.0, 100.0)
-    religious_state["community"] = clamp(float(religious_state["community"]) + 0.7, 0.0, 100.0)
-    mood = clamp(mood + 2.0, 0.0, 100.0)
-    stress = clamp(stress - 1.5, 0.0, 100.0)
-    interaction_message = "%s selesai. Konsistensi ibadah menjadi bagian dari ritme hidup karakter." % prayer_name
-    _emit_android_event("PRAYER_COMPLETED", "Ibadah dalam game", "%s tercatat pada hari %d." % [prayer_name, day])
-
-func _religion_study() -> void:
-    if energy < 8.0:
-        interaction_message = "Energi terlalu rendah untuk belajar."
-        return
-    energy -= 8.0
-    religious_state["religion_knowledge"] = clamp(float(religious_state["religion_knowledge"]) + 1.6, 0.0, 100.0)
-    religious_state["faith"] = clamp(float(religious_state["faith"]) + 1.0, 0.0, 100.0)
-    skills["Study"] = clamp(float(skills["Study"]) + 0.8, 0.0, 100.0)
-    interaction_message = "Belajar agama selesai. Pengetahuan dan ketenangan karakter meningkat."
-    _advance_game_minutes(35)
-
-func _mosque_event() -> void:
-    var distance := player.global_position.distance_to(Vector3(0, 0, -14))
-    if distance > 8.0:
-        interaction_message = "Pergi ke Masjid terlebih dahulu untuk mengikuti kegiatan komunitas."
-        return
-    religious_state["community"] = clamp(float(religious_state["community"]) + 3.0, 0.0, 100.0)
-    political_state["trust"] = clamp(float(political_state["trust"]) + 1.2, 0.0, 100.0)
-    reputation = clamp(reputation + 0.5, 0.0, 100.0)
-    mood = clamp(mood + 2.5, 0.0, 100.0)
-    interaction_message = "Kegiatan masjid selesai. Komunitas dan jaringan sosialmu menguat."
-    _advance_game_minutes(45)
-
-func _charity_action() -> void:
-    var amount := minf(25.0, money)
-    if amount < 10.0:
-        interaction_message = "Sisihkan sedikit uang terlebih dahulu untuk aksi sosial."
-        return
-    money -= amount
-    religious_state["charity_total"] = float(religious_state["charity_total"]) + amount
-    religious_state["community"] = clamp(float(religious_state["community"]) + 4.0, 0.0, 100.0)
-    city_state["services"] = clamp(float(city_state["services"]) + 1.2, 0.0, 100.0)
-    political_state["trust"] = clamp(float(political_state["trust"]) + 1.4, 0.0, 100.0)
-    reputation = clamp(reputation + 0.9, 0.0, 100.0)
-    interaction_message = "Aksi sosial tersalurkan sebesar $%.0f. Dampaknya tercatat pada komunitas." % amount
-    _advance_game_minutes(20)
-
-func _zakat_action() -> void:
-    var wealth := money + bank + investment_value
-    if wealth < 400.0:
-        interaction_message = "Simulasi zakat: aset belum mencapai ambang game $400."
-        return
-    if day - int(religious_state["last_zakat_day"]) < 30:
-        interaction_message = "Zakat sudah tercatat pada siklus game ini."
-        return
-    var amount := wealth * 0.025
-    amount = minf(amount, money)
-    if amount < 10.0:
-        interaction_message = "Dana tunai tidak cukup untuk simulasi zakat saat ini."
-        return
-    money -= amount
-    religious_state["zakat_total"] = float(religious_state["zakat_total"]) + amount
-    religious_state["last_zakat_day"] = day
-    religious_state["community"] = clamp(float(religious_state["community"]) + 6.0, 0.0, 100.0)
-    religious_state["faith"] = clamp(float(religious_state["faith"]) + 1.5, 0.0, 100.0)
-    city_state["services"] = clamp(float(city_state["services"]) + 2.0, 0.0, 100.0)
-    interaction_message = "Simulasi zakat tercatat: $%.0f kembali ke ekosistem sosial kota." % amount
-    _advance_game_minutes(25)
-
-func _fasting_action() -> void:
-    if not bool(religious_state.get("is_ramadan", false)):
-        interaction_message = "Mode puasa ini tersedia pada Ramadan dalam kalender game."
-        return
-    religious_state["fasting_today"] = not bool(religious_state["fasting_today"])
-    if bool(religious_state["fasting_today"]):
-        religious_state["community"] = clamp(float(religious_state["community"]) + 1.5, 0.0, 100.0)
-        interaction_message = "Puasa hari ini diaktifkan. Tetap gunakan kebutuhan karakter secara wajar."
-    else:
-        interaction_message = "Mode puasa hari ini dinonaktifkan."
-
-func _business_ethics() -> void:
-    if not own_business["owned"]:
-        interaction_message = "Bangun usaha terlebih dahulu untuk mengatur etika operasi."
-        return
-    var modes := ["Fair & Halal", "Competitive", "Aggressive"]
-    var current := modes.find(String(business_state.get("ethics_mode", "Fair & Halal")))
-    business_state["ethics_mode"] = modes[(current + 1) % modes.size()]
-    var mode := String(business_state["ethics_mode"])
-    interaction_message = "Mode operasi: %s. Dampaknya terasa pada margin, kepercayaan, dan integritas usaha." % mode
-    _advance_game_minutes(10)
-
-func _interact_location() -> void:
-    var candidates := [
-        ["Rumah", Vector3(-8, 0, -8), "home"],
-        ["Pasar", Vector3(7, 0, -8), "market"],
-        ["Kafe", Vector3(-8, 0, 8), "cafe"],
-        ["Sekolah", Vector3(7, 0, 8), "school"],
-        ["Masjid", Vector3(0, 0, -14), "mosque"],
-        ["Balai Kota", Vector3(0, 0, 14), "government"],
-        ["Business Hub", Vector3(-14, 0, 14), "business"],
-        ["Rumah Sakit", Vector3(14, 0, -14), "hospital"],
-        ["Community Center", Vector3(14, 0, 14), "community"],
-        ["Taman", Vector3(14, 0, 0), "park"],
-    ]
-    var best_name := ""
-    var best_kind := ""
-    var best_distance := 999.0
-    for candidate in candidates:
-        var distance: float = player.global_position.distance_to(candidate[1])
-        if distance < best_distance:
-            best_distance = distance
-            best_name = candidate[0]
-            best_kind = candidate[2]
-    if best_distance > 7.5:
-        interaction_message = "Belum ada lokasi penting di dekatmu."
-        return
-    match best_kind:
-        "home":
-            interaction_message = "Rumah: istirahat, masak, berkebun, dan menyimpan progres."
-        "market":
-            interaction_message = "Pasar: belanja, jual barang, membaca harga, dan bertemu pedagang."
-        "cafe":
-            _social_interaction()
-        "school":
-            _record_activity("study")
-            interaction_message = "Sekolah: tempat belajar dan meningkatkan skill."
-        "mosque":
-            _mosque_event()
-        "government":
-            _community_meeting()
-            interaction_message = "Balai Kota: anggaran, konsultasi publik, kebijakan, dan karier pelayanan publik."
-        "business":
-            _market_research()
-            interaction_message = "Business Hub: pemasok, kontrak, tenaga kerja, ekspansi, dan strategi pasar."
-        "hospital":
-            health = min(100.0, health + 8.0)
-            stress = max(0.0, stress - 3.0)
-            interaction_message = "Pemeriksaan kesehatan sederhana selesai."
-        "community":
-            _community_meeting()
-        "park":
-            mood = min(100.0, mood + 6.0)
-            stress = max(0.0, stress - 4.0)
-            interaction_message = "Istirahat di taman membuat suasana hati membaik."
-    interaction_message = "%s · %s" % [best_name, interaction_message]
-
 func _action(action_name: String) -> void:
     interaction_message = ""
     _record_activity(action_name)
-    world_dirty = true
     match action_name:
         "eat":
             if inventory["Food"] > 0:
@@ -2377,30 +1345,6 @@ func _action(action_name: String) -> void:
             _cycle_transport()
         "home_upgrade":
             _upgrade_home()
-        "interact":
-            _interact_location()
-        "pray":
-            _prayer_action()
-        "religion_study":
-            _religion_study()
-        "mosque_event":
-            _mosque_event()
-        "charity":
-            _charity_action()
-        "zakat":
-            _zakat_action()
-        "waqf":
-            _waqf_action()
-        "fasting":
-            _fasting_action()
-        "business_ethics":
-            _business_ethics()
-        "employees":
-            _manage_employees()
-            _advance_game_minutes(30)
-        "supply_chain":
-            _manage_supply_chain()
-            _advance_game_minutes(30)
         "work":
             if energy >= 15.0:
                 var job: Dictionary = job_catalog[job_index]
@@ -2521,12 +1465,6 @@ func _action(action_name: String) -> void:
         "campaign":
             _campaign_activity()
             _advance_game_minutes(60)
-        "political_career":
-            _advance_political_career()
-            _advance_game_minutes(30)
-        "budget_policy":
-            _simulate_public_budget()
-            _advance_game_minutes(30)
         "opportunity":
             _claim_opportunity()
             _advance_game_minutes(30)
@@ -2581,12 +1519,12 @@ func _action(action_name: String) -> void:
             interaction_message = "Tidur selesai. Hari bergerak maju."
             _advance_game_minutes(480)
         "save":
-            _save_world(true)
+            _save_world()
             interaction_message = "Game tersimpan."
         "load":
             _load_world()
             interaction_message = "Game dimuat."
-    # Save dipertekan oleh autosave/lifecycle; tidak lagi dilakukan setiap tap.
+    _save_world()
 
 func _business_deal() -> void:
     if not own_business["owned"]:
@@ -2760,9 +1698,9 @@ func _upgrade_home() -> void:
     _emit_android_event("HOME_UPGRADED", "Rumah diperbarui", "Level rumah sekarang %d." % home_level)
 
 func _toggle_policy() -> void:
-    var keys := ["small_business", "education_fund", "public_transport", "market_fairness", "community_health"]
+    var keys := ["small_business", "education_fund", "public_transport"]
     var key: String = keys[policy_cycle % keys.size()]
-    var activation_cost: float = float({"small_business": 60.0, "education_fund": 90.0, "public_transport": 110.0, "market_fairness": 80.0, "community_health": 100.0}[key])
+    var activation_cost: float = float({"small_business": 60.0, "education_fund": 90.0, "public_transport": 110.0}[key])
     if not bool(policies[key]):
         if float(political_state["political_capital"]) < 4.0:
             interaction_message = "Modal politik belum cukup untuk mengaktifkan kebijakan. Bangun dukungan dulu."
@@ -2784,14 +1722,6 @@ func _toggle_policy() -> void:
             "public_transport":
                 factions["public"] = clamp(float(factions["public"]) + 2.5, 0.0, 100.0)
                 city_state["transport_quality"] = clamp(float(city_state["transport_quality"]) + 2.0, 0.0, 100.0)
-            "market_fairness":
-                factions["business"] = clamp(float(factions["business"]) + 1.5, 0.0, 100.0)
-                factions["public"] = clamp(float(factions["public"]) + 2.0, 0.0, 100.0)
-                business_state["competitive_pressure"] = clamp(float(business_state["competitive_pressure"]) - 2.0, 0.0, 100.0)
-            "community_health":
-                city_state["services"] = clamp(float(city_state["services"]) + 2.5, 0.0, 100.0)
-                factions["community"] = clamp(float(factions["community"]) + 3.0, 0.0, 100.0)
-                religious_state["community"] = clamp(float(religious_state["community"]) + 2.0, 0.0, 100.0)
         interaction_message = "Kebijakan %s aktif. Dampaknya akan dirasakan warga dan anggaran." % key
     else:
         policies[key] = false
@@ -2964,31 +1894,9 @@ func _update_hud() -> void:
     var business_status := "OFF"
     if own_business["open"]:
         business_status = "ON"
-    var office: String = ("Jabatan %d hari" % int(election_state["term_days"])) if bool(election_state["won"]) else "Warga"
-    var month_index := clampi(int(religious_state.get("calendar_month", 1)) - 1, 0, calendar_month_names.size() - 1)
-    var month_name := String(calendar_month_names[month_index])
-    var calendar_label := "RAMADAN" if bool(religious_state.get("is_ramadan", false)) else month_name
-    status_label.text = "ZAHRA LIFE · Hari %d · %02d:%02d · %s · %s\n" % [day, hour, minute, weather, calendar_label] +         "AGAMA  Iman %.0f · Salat %d/5 · Streak %d · Komunitas %.0f · Zakat $%.0f · Puasa %s\n" % [
-            religious_state["faith"], int(religious_state["prayers_today"]), int(religious_state["prayer_streak"]),
-            religious_state["community"], religious_state["zakat_total"], "ON" if religious_state["fasting_today"] else "OFF"
-        ] +         "BISNIS  %s Lv.%d · %s · Trust %.0f · Margin +$%.0f · Pasar %.0f\n" % [
-            business_state["sector"], int(own_business["level"]), business_state.get("ethics_mode", "Fair & Halal"),
-            business_state["customer_trust"], business_revenue, market_sentiment
-        ] +         "POLITIK  %s · Support %.0f · Influence %.0f · Trust %.0f · Heat %.0f · Koalisi %.0f\n" % [
-            office, public_support, political_state["influence"], political_state["trust"],
-            political_state["political_heat"], political_state["coalition_strength"]
-        ] +         "HIDUP  $%.0f + Bank $%.0f · HP %.0f · Energi %.0f · Mood %.0f · Reputasi %.0f · Event %d" % [
-            money, bank, health, energy, mood, reputation, recent_events.size()
-        ]
+    var office: String = ("Jabatan aktif %d hari" % int(election_state["term_days"])) if bool(election_state["won"]) else "Warga"
+    status_label.text = "Unlock %d · Hari %d · %02d:%02d · %s\n$%.0f + Bank $%.0f · Invest $%.0f · Energi %.0f · Lapar %.0f · HP %.0f\nMood %.0f · Stress %.0f · Reputasi %.0f · Bosan %.0f\nKerja %s · Transport %s · Rumah Lv.%d · Usaha %s +$%.0f · %s/%s\nPeluang: %s\nEkonomi: Inflasi %.1f%% · Kerja %.0f%% · Upah %.0f · Daya beli %.0f · Vol %.0f\nPasar: Sentimen %.0f · Aktivitas %.0f · Produksi %.0f\nPolitik: Support %.0f · Influence %.0f · Trust %.0f · Heat %.0f · Modal %.0f · Koalisi %.0f\nKebijakan: Approval %.0f · Utang %.0f · Konsultasi %.0f\nKota: Infrastruktur %.0f · Layanan %.0f · Bisnis %.0f · Ketertiban %.0f · %s" % [game_unlocks.size(), day, hour, minute, weather, money, bank, investment_value, energy, hunger, health, mood, stress, reputation, boredom, current_job, transport, home_level, business_status, business_revenue, String(business_state["sector"]), String(business_state["price_strategy"]), String(active_opportunity.get("title", "Tidak ada")), world_economy["inflation"], world_economy["employment"], world_economy["wage_index"], 100.0 - float(world_economy["household_pressure"]), world_economy["market_volatility"], market_sentiment, world_economy["city_activity"], world_economy["production"], public_support, political_state["influence"], political_state["trust"], political_state["political_heat"], political_state["political_capital"], political_state["coalition_strength"], political_state["policy_approval"], political_state["policy_debt"], political_state["consultation"], city_state["infrastructure"], city_state["services"], city_state["business_density"], city_state["public_order"], office]
     message_label.text = interaction_message
-    # System strip: concise state visibility without opening menus.
-    var system_text := "3D CITY  %d NPC · %s  |  KARIER %s · USaha %d pegawai · WAKAF $%.0f" % [
-        npcs.size(), String(civic_state["district"]), String(political_career["rank"]),
-        int(enterprise_state["employees"]), float(religious_calendar_state["waqf_total"])
-    ]
-    if detail_labels.size() > 0 and is_instance_valid(detail_labels[0]):
-        detail_labels[0].text = "AGAMA
-%s" % system_text
 
 func _capture_performance() -> void:
     perf_last_fps = Engine.get_frames_per_second()
@@ -3020,9 +1928,7 @@ func _capture_performance() -> void:
             var temp_text := "--" if perf_last_battery_temp < 0.0 else "%.1fC" % perf_last_battery_temp
             perf_label.text = "QA %dfps · min %.0f · PSS %.1f/peak %.1fMB · draw %d · obj %d · bat %s %s" % [int(perf_last_fps), perf_min_fps, perf_last_pss_mb, perf_max_pss_mb, draw_calls, objects, str(perf_last_battery_percent) + "%", temp_text]
 
-func _save_world(force: bool = false) -> void:
-    if not force and not world_dirty:
-        return
+func _save_world() -> void:
     var npc_state: Array = []
     for npc in npcs:
         npc_state.append({
@@ -3043,12 +1949,6 @@ func _save_world(force: bool = false) -> void:
             "political_affinity": npc.get("political_affinity", "public"),
             "memory": npc.get("memory", []),
             "last_interaction_day": npc.get("last_interaction_day", 0),
-            "family_id": npc.get("family_id", 0),
-            "household_size": npc.get("household_size", 2),
-            "income": npc.get("income", 70.0),
-            "faith_practice": npc.get("faith_practice", 50.0),
-            "business_interest": npc.get("business_interest", 40.0),
-            "civic_interest": npc.get("civic_interest", 40.0),
             "goal": [npc["goal"].x, npc["goal"].y, npc["goal"].z],
         })
     var state := {
@@ -3096,13 +1996,7 @@ func _save_world(force: bool = false) -> void:
         "event_cooldowns": event_cooldowns,
         "active_opportunity": active_opportunity,
         "business_state": business_state,
-        "religious_state": religious_state,
-        "prayer_flags": prayer_flags,
         "world_revision": world_revision,
-        "political_career": political_career,
-        "enterprise_state": enterprise_state,
-        "civic_state": civic_state,
-        "religious_calendar_state": religious_calendar_state,
         "npcs": npc_state,
         "player": [player.position.x, player.position.y, player.position.z],
     }
@@ -3170,7 +2064,6 @@ func _save_world(force: bool = false) -> void:
         interaction_message = "Game gagal menyimpan secara atomik; save sebelumnya dipulihkan."
         return
     last_save_day = day
-    world_dirty = false
 
 func _read_compressed_state(path: String):
     if not FileAccess.file_exists(path):
@@ -3325,29 +2218,6 @@ func _load_world() -> void:
     if typeof(saved_business_state) == TYPE_DICTIONARY:
         for key in business_state.keys():
             if saved_business_state.has(key): business_state[key] = saved_business_state[key]
-    if String(business_state.get("ethics_mode", "Fair & Halal")) not in ["Fair & Halal", "Competitive", "Aggressive"]:
-        business_state["ethics_mode"] = "Fair & Halal"
-    business_state["halal_integrity"] = clamp(float(business_state.get("halal_integrity", 88.0)), 0.0, 100.0)
-    var saved_religious_state = parsed.get("religious_state", {})
-    if typeof(saved_religious_state) == TYPE_DICTIONARY:
-        for key in religious_state.keys():
-            if saved_religious_state.has(key): religious_state[key] = saved_religious_state[key]
-    var saved_prayer_flags = parsed.get("prayer_flags", {})
-    if typeof(saved_prayer_flags) == TYPE_DICTIONARY:
-        for key in prayer_flags.keys():
-            if saved_prayer_flags.has(key): prayer_flags[key] = bool(saved_prayer_flags[key])
-    if String(business_state.get("ethics_mode", "Fair & Halal")) not in ["Fair & Halal", "Competitive", "Aggressive"]:
-        business_state["ethics_mode"] = "Fair & Halal"
-    business_state["halal_integrity"] = clamp(float(business_state.get("halal_integrity", 88.0)), 0.0, 100.0)
-
-    var saved_religious_state = parsed.get("religious_state", {})
-    if typeof(saved_religious_state) == TYPE_DICTIONARY:
-        for key in religious_state.keys():
-            if saved_religious_state.has(key): religious_state[key] = saved_religious_state[key]
-    var saved_prayer_flags = parsed.get("prayer_flags", {})
-    if typeof(saved_prayer_flags) == TYPE_DICTIONARY:
-        for key in prayer_flags.keys():
-            if saved_prayer_flags.has(key): prayer_flags[key] = bool(saved_prayer_flags[key])
     var saved_activity = parsed.get("activity_memory", {})
     if typeof(saved_activity) == TYPE_DICTIONARY:
         activity_memory = saved_activity
@@ -3373,23 +2243,6 @@ func _load_world() -> void:
     novelty = clamp(float(parsed.get("novelty", novelty)), 0.0, 100.0)
     world_revision = max(0, int(parsed.get("world_revision", world_revision)))
 
-    var saved_career = parsed.get("political_career", {})
-    if typeof(saved_career) == TYPE_DICTIONARY:
-        for key in political_career.keys():
-            if saved_career.has(key): political_career[key] = saved_career[key]
-    var saved_enterprise = parsed.get("enterprise_state", {})
-    if typeof(saved_enterprise) == TYPE_DICTIONARY:
-        for key in enterprise_state.keys():
-            if saved_enterprise.has(key): enterprise_state[key] = saved_enterprise[key]
-    var saved_civic = parsed.get("civic_state", {})
-    if typeof(saved_civic) == TYPE_DICTIONARY:
-        for key in civic_state.keys():
-            if saved_civic.has(key): civic_state[key] = saved_civic[key]
-    var saved_religious_calendar = parsed.get("religious_calendar_state", {})
-    if typeof(saved_religious_calendar) == TYPE_DICTIONARY:
-        for key in religious_calendar_state.keys():
-            if saved_religious_calendar.has(key): religious_calendar_state[key] = saved_religious_calendar[key]
-
     var npc_state = parsed.get("npcs", null)
     if typeof(npc_state) == TYPE_ARRAY:
         for i in range(min(npc_state.size(), npcs.size())):
@@ -3411,15 +2264,10 @@ func _load_world() -> void:
             if typeof(saved.get("memory", [])) == TYPE_ARRAY:
                 npcs[i]["memory"] = saved.get("memory", []).slice(max(0, saved.get("memory", []).size() - 5))
             npcs[i]["last_interaction_day"] = int(saved.get("last_interaction_day", 0))
-            npcs[i]["family_id"] = int(saved.get("family_id", npcs[i].get("family_id", 0)))
-            npcs[i]["household_size"] = max(1, int(saved.get("household_size", npcs[i].get("household_size", 2))))
-            npcs[i]["income"] = max(0.0, float(saved.get("income", npcs[i].get("income", 70.0))))
-            npcs[i]["faith_practice"] = clamp(float(saved.get("faith_practice", npcs[i].get("faith_practice", 50.0))), 0.0, 100.0)
-            npcs[i]["business_interest"] = clamp(float(saved.get("business_interest", npcs[i].get("business_interest", 40.0))), 0.0, 100.0)
-            npcs[i]["civic_interest"] = clamp(float(saved.get("civic_interest", npcs[i].get("civic_interest", 40.0))), 0.0, 100.0)
 
     var saved_player = parsed.get("player", null)
     if typeof(saved_player) == TYPE_ARRAY and saved_player.size() == 3:
         player.position = Vector3(float(saved_player[0]), 0.0, float(saved_player[2]))
 
     _normalize_dynamic_state()
+

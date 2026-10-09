@@ -10,8 +10,7 @@ extends SceneTree
 # Error skrip Godot (SCRIPT ERROR / Parse Error) dicetak ke stderr; workflow CI menggagalkan job bila ada.
 
 const ACTIONS := [
-    "interact", "eat", "wash", "job", "work", "study", "cook", "garden", "buy", "sell", "negotiate", "social",
-    "pray", "religion_study", "mosque_event", "charity", "zakat", "fasting", "business_ethics",
+    "eat", "wash", "job", "work", "study", "cook", "garden", "buy", "sell", "negotiate", "social",
     "forum", "debate", "proposal", "policy", "election", "business", "restock_business",
     "upgrade_business", "business_sector", "business_strategy", "business_deal", "market_research",
     "community", "political_strategy", "campaign", "opportunity", "deposit", "withdraw", "invest",
