@@ -1,6 +1,6 @@
-# Zahra v0.15.0 — App-first polish
+# Zahra v0.18.0 — Calm Islamic companion & yearly growth
 
-Aplikasi pribadi (Android) untuk misi, daftar, reward, dan bukti kamera, ditambah **dunia 3D simulasi kehidupan** (Godot) yang tertanam di dalam APK yang sama.
+Aplikasi Android untuk ibadah dan aktivitas harian, misi otomatis, konten hadis/doa daring, level tahunan tersimpan, kebun benih yang tumbuh dari reward, serta teman virtual Mimi. Visual memakai warna sage, teal, lavender, dan putih hangat; tidak ada estetika cyberpunk.
 
 > Status verifikasi: audit statis tersedia, tetapi paket ini belum berhasil di-build menjadi APK di lingkungan kerja ini karena Gradle/Android SDK tidak tersedia. Jalankan build dan unit test di Android Studio/CI sebelum instalasi final.
 
@@ -9,78 +9,71 @@ Aplikasi pribadi (Android) untuk misi, daftar, reward, dan bukti kamera, ditamba
 ```
 .
 ├── app/                         Modul Android (Kotlin, Jetpack Compose, Room, WorkManager, CameraX, ML Kit)
-│   └── src/main/assets/         Game Three.js lokal di assets/game/index.html; halaman web alternatif di web/zahra-world.html
-├── tests/godot/run_tests.gd     Smoke test Godot headless (parse semua skrip + jalankan dunia 3D beberapa hari)
+│   └── src/main/assets/         Asset lokal aplikasi
 ├── tools/audit/                 Audit statis tanpa kompiler (python3 tools/audit/audit_all.py)
-├── docs/                        Status, changelog, laporan verifikasi, gerbang rilis, desain World Brain
+├── docs/                        Catatan arsitektur, status, dan laporan verifikasi
 ├── gradle/wrapper/              gradle-wrapper.properties (Gradle 9.4.1)
-└── .github/workflows/           android.yml (unit test + APK debug), godot.yml (smoke test Godot)
+└── .github/workflows/           android.yml (unit test + APK debug)
 ```
 
 ## Cara build
 
-Prasyarat: JDK 17+, Android SDK (platform 36, build-tools 36.0.0), Android Studio terbaru.
+Prasyarat: JDK 17+, Android SDK platform 37, Android Studio terbaru.
 
 1. Buka folder ini di Android Studio, tunggu sync. (Studio memakai `gradle/wrapper/gradle-wrapper.properties` -> Gradle 9.4.1.)
 2. Opsional untuk terminal: `gradle wrapper --gradle-version 9.4.1` sekali saja (membuat `gradlew` dan `gradle-wrapper.jar`), lalu commit.
 3. `./gradlew testDebugUnitTest assembleDebug`
 4. APK ada di `app/build/outputs/apk/debug/`.
 
-Catatan versi: AGP 9.2 memakai Kotlin bawaan. **Jangan** menambahkan plugin `org.jetbrains.kotlin.android`; versi Kotlin Gradle Plugin dipaksa 2.4.20 lewat `buildscript` di `build.gradle.kts` agar cocok dengan plugin Compose.
+Catatan versi: AGP 9.2 memakai Kotlin bawaan. **Jangan** menambahkan plugin `org.jetbrains.kotlin.android`; gunakan konfigurasi plugin yang sudah ada di root Gradle.
 
 ## Pemeriksaan
 
 | Perintah | Fungsi |
 |---|---|
-| `python3 tools/audit/audit_all.py` | Audit statis (DAO tak terdaftar, urutan argumen Compose, `:=` GDScript dari Variant, dsb.) |
-| `gradle testDebugUnitTest` | Unit test JVM (RepeatRules, RewardGuard, Backup, Bridge contract) |
-| `godot --headless --path app/src/main/assets -s "$PWD/tests/godot/run_tests.gd"` | Smoke test dunia 3D |
-| `gradle connectedDebugAndroidTest` | Uji instrumented (Keystore, transport bridge, idempotensi reward) - perlu perangkat/emulator |
+| `python3 tools/audit/audit_all.py` | Audit statis untuk beberapa kesalahan Kotlin/Compose dan metadata Gradle |
+| `gradle testDebugUnitTest` | Unit test JVM (RepeatRules, RewardGuard, Backup) |
+| `gradle connectedDebugAndroidTest` | Uji instrumented (idempotensi reward dan data) - perlu perangkat/emulator |
 
 ## Push ke GitHub
 
 ```bash
 git init
 git add .
-git commit -m "Zahra v0.14.0"
+git commit -m "Zahra v0.18.0"
 git branch -M main
 git remote add origin https://github.com/<username>/<repo>.git
 git push -u origin main
 ```
 
-Lalu buka tab **Actions**: workflow Android dan Godot akan jalan otomatis dan menunjukkan error build yang tersisa.
+Lalu buka tab **Actions** dan jalankan workflow **Android CI** untuk membuat APK debug.
 
-## Pembaruan v0.16.0 — game lebih rapi dan nyaman
 
-- Karakter pemain/NPC diperhalus dengan proporsi kepala, badan, tangan, kaki, rambut, dan wajah yang lebih seimbang; animasi langkah dibuat lebih tenang. Ini tetap gaya 3D stylized, bukan manusia fotorealistis.
-- Rumah diberi pintu, jendela, lis, jalur, dan koneksi jalan sederhana.
-- Teks tutorial dan HUD dirapikan; obrolan acak yang terasa repetitif dikurangi; emoji dekoratif di HUD dihapus.
-- Render pixel ratio dibatasi ke 1.5 dan shadow map 512 untuk membantu performa ponsel.
-- Game mencoba memuat Three.js dari dua CDN. Karena Three.js tidak ada di arsip sumber dan akses jaringan build tidak tersedia, game 3D belum offline/self-contained; game memerlukan koneksi untuk memuat library, kecuali `three.min.js` ditambahkan secara lokal.
-- Manifest menambahkan izin INTERNET untuk pemuatan library game.
-
-## Pembaruan v0.15.0
-
-- Dashboard Android ditata ulang menjadi pusat aktivitas: hero dunia Zahra, kartu Goodness Points dan misi selesai, progress, akses cepat, daftar misi aktif, empty state, serta shortcut pengaturan/backup.
-- Build metadata diperbarui ke `versionCode 15` / `versionName 0.15.0`.
-- Perilaku data, Room, backup terenkripsi, kamera proof, reminder, dan bridge tidak diganti pada perubahan visual ini.
-- Catatan game: `app/src/main/assets/game/index.html` merujuk `three.min.js`, tetapi file tersebut tidak ada pada ZIP sumber. Perlu vendoring Three.js untuk game berjalan sepenuhnya offline; aplikasi utama tetap dapat dibangun terpisah dari game.
 
 ## Fitur
 
-- Onboarding aman, profil, misi (buat/ubah/selesai/jeda/lanjut/arsip), pengulangan, jadwal tanggal-jam, daftar/checklist.
-- Goodness Points + reward berambang, ledger idempoten (satu sumber poin = satu baris).
-- Pengingat opt-in (WorkManager) yang disinkronkan ulang saat reboot, ganti jam, ganti zona waktu.
+- Onboarding, profil, misi ibadah dan aktivitas (buat/ubah/selesai/jeda/lanjut/arsip), pengulangan, dan pengingat.
+- Reward tetes air dengan jumlah yang mengikuti tingkat kesulitan misi. Tetes air adalah progres aplikasi, bukan ukuran pahala atau nilai ibadah.
+- Mimi bergerak lembut, memiliki pesan penyemangat, dan bisa diberi pakan dari reward misi.
+- Pengingat memakai nada dua-nota lembut buatan lokal, getaran ringan, dan kanal notifikasi terpisah.
+- Checklist modern dengan status selesai dan indikator progres.
+- Kebun dimulai dari benih, tumbuh bertahap sesuai tetes air, dengan animasi daun jatuh dan pesan pribadi.
+- Level/EXP tersimpan per tahun kalender, termasuk riwayat tahunan yang dibackup dan dipulihkan.
+- Sembilan koleksi hadis dan kategori doa daring; sumber ditampilkan, koneksi internet diperlukan. Pesan pribadi Mimi ditandai bukan hadis.
+- Misi awal sholat wajib dan rutinitas sunnah/puasa yang bisa diedit/diarsip; aktivitas buatan pengguna mendapat estimasi kesulitan lokal transparan.
+- Palet tenang: hijau sage, teal, lavender, dan putih hangat dengan animasi peralihan halus.
 - Bukti kamera: foto, pose (ML Kit), objek (ML Kit). AI hanya memberi evidence; keputusan akhir tetap pada pengguna.
 - Backup terenkripsi portabel (password, PBKDF2 + AES-GCM) dan restore dengan validasi.
-- Dunia simulasi 3D berbasis Three.js: karakter pemain, NPC, kebun, pasar, masjid, balai warga, event dan sistem ekonomi ringan.
-- Jembatan app <-> game v2: terautentikasi (Android Keystore HMAC), antrean inbox/outbox, event ID unik.
-
-## Kosmetik dan pembagian poin
-
-Poin aplikasi (nyata) dan uang game (virtual) sengaja dipisah; koneksi bersifat opsional.
-
 
 ## Mulai cepat di GitHub
 
-Folder ini adalah **root repository**. Upload/commit isi ZIP ini langsung ke root repo (jangan bungkus lagi dengan folder `src/`). Buka folder proyek ini di Android Studio atau jalankan workflow GitHub Actions dari tab **Actions**.
+Folder ini adalah **root repository**. Upload/commit isi ZIP ini langsung ke root repo (jangan bungkus lagi dengan folder `src/`). Buka folder proyek ini di Android Studio atau jalankan workflow **Android CI** dari tab **Actions**.
+
+
+## Arah produk v0.18.0
+
+- Tidak ada game terpisah: beranda memadukan Mimi, kebun kecil, level tahunan, aktivitas dan akses cepat ibadah.
+- Tetes air, EXP, pakan dan poin adalah gamifikasi aplikasi, bukan ukuran pahala, kualitas iman, atau hukum ibadah.
+- Estimasi kesulitan adalah heuristik lokal yang bisa meleset, bukan model AI yang memahami konteks atau penilaian agama.
+- Hadis dan doa diambil dari API pihak ketiga saat layar dibuka; verifikasi rujukan dan penjelasan tetap diperlukan. Konten daring tidak dijamin tersedia offline.
+- Build APK dan tes JUnit harus dijalankan di Android Studio/CI karena Gradle executable dan Android SDK tidak tersedia di lingkungan pengeditan ini.

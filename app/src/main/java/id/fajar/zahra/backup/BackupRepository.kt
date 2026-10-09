@@ -10,6 +10,7 @@ import id.fajar.zahra.data.ProfileEntity
 import id.fajar.zahra.data.ProofEntity
 import id.fajar.zahra.data.RewardEntity
 import id.fajar.zahra.data.ZahraDatabase
+import id.fajar.zahra.data.YearlyProgressEntity
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
@@ -91,6 +92,16 @@ class BackupRepository(private val db: ZahraDatabase) {
             }
         })
 
+        root.put("yearlyProgress", JSONArray().apply {
+            db.yearProgressDao().observeAll().first().forEach { p ->
+                put(JSONObject()
+                    .put("year", p.year).put("level", p.level).put("experience", p.experience)
+                    .put("water", p.water).put("catFood", p.catFood).put("plantStage", p.plantStage)
+                    .put("leafDrops", p.leafDrops).put("lastLeafMessageIndex", p.lastLeafMessageIndex)
+                    .put("createdAt", p.createdAt).put("updatedAt", p.updatedAt))
+            }
+        })
+
         root.put("events", JSONArray().apply {
             db.eventDao().getAllForBackup().forEach { e ->
                 put(JSONObject()
@@ -127,6 +138,7 @@ class BackupRepository(private val db: ZahraDatabase) {
         val lists = parseLists(root.optJSONArray("lists") ?: JSONArray())
         val listItems = parseListItems(root.optJSONArray("listItems") ?: JSONArray())
         val events = parseEvents(root.optJSONArray("events") ?: JSONArray())
+        val yearlyProgress = parseYearlyProgress(root.optJSONArray("yearlyProgress") ?: JSONArray())
 
         db.withTransaction {
             db.profileDao().deleteAll()
@@ -137,6 +149,7 @@ class BackupRepository(private val db: ZahraDatabase) {
             db.listItemDao().deleteAll()
             db.listDao().deleteAll()
             db.eventDao().deleteAll()
+            db.yearProgressDao().deleteAll()
 
             profile?.let { db.profileDao().save(it) }
             missions.forEach { db.missionDao().insertWithId(it) }
@@ -146,6 +159,7 @@ class BackupRepository(private val db: ZahraDatabase) {
             lists.forEach { db.listDao().insertWithId(it) }
             listItems.forEach { db.listItemDao().insertWithId(it) }
             if (events.isNotEmpty()) db.eventDao().insertAll(events)
+            yearlyProgress.forEach { db.yearProgressDao().save(it) }
             db.eventDao().insert(AppEventEntity(type = "BACKUP_IMPORTED", title = "Backup dipulihkan", detail = "Data berhasil divalidasi dan dimuat"))
         }
     }
@@ -231,6 +245,20 @@ class BackupRepository(private val db: ZahraDatabase) {
             if (reward.optBoolean("unlocked")) require(reward.getInt("threshold") <= totalPoints) { "Reward unlocked melebihi total poin" }
         }
 
+        val annualYears = HashSet<Int>()
+        val annualRecords = root.optJSONArray("yearlyProgress") ?: JSONArray()
+        for (i in 0 until annualRecords.length()) {
+            val annual = annualRecords.getJSONObject(i)
+            val year = annual.optInt("year", 0)
+            require(year in 1900..9999 && annualYears.add(year)) { "Tahun progres duplikat atau tidak valid" }
+            require(annual.optInt("level", 1) in 1..999) { "Level tahunan tidak valid" }
+            require(annual.optInt("experience", 0) >= 0) { "EXP tahunan tidak valid" }
+            require(annual.optInt("water", 0) >= 0 && annual.optInt("catFood", 0) >= 0) { "Reward tahunan tidak valid" }
+            require(annual.optInt("plantStage", 0) in 0..6) { "Tahap tanaman tidak valid" }
+            require(annual.optInt("leafDrops", 0) >= 0) { "Jumlah daun tidak valid" }
+            require(annual.optInt("lastLeafMessageIndex", -1) in -1..7) { "Pesan daun tidak valid" }
+        }
+
         val eventIds = HashSet<Long>()
         val events = root.optJSONArray("events") ?: JSONArray()
         val bridgeIds = HashSet<String>()
@@ -298,6 +326,24 @@ class BackupRepository(private val db: ZahraDatabase) {
         for (i in 0 until a.length()) {
             val e=a.getJSONObject(i)
             add(ListItemEntity(id=e.getLong("id"), listId=e.getLong("listId"), title=e.getString("title").trim().take(160), checked=e.optBoolean("checked"), createdAt=e.optLong("createdAt",System.currentTimeMillis()), checkedAt=e.optLongOrNull("checkedAt")))
+        }
+    }
+
+    private fun parseYearlyProgress(a: JSONArray): List<YearlyProgressEntity> = buildList {
+        for (i in 0 until a.length()) {
+            val e = a.getJSONObject(i)
+            add(YearlyProgressEntity(
+                year = e.getInt("year"),
+                level = e.optInt("level", 1).coerceIn(1, 999),
+                experience = e.optInt("experience", 0).coerceAtLeast(0),
+                water = e.optInt("water", 0).coerceAtLeast(0),
+                catFood = e.optInt("catFood", 0).coerceAtLeast(0),
+                plantStage = e.optInt("plantStage", 0).coerceIn(0, 6),
+                leafDrops = e.optInt("leafDrops", 0).coerceAtLeast(0),
+                lastLeafMessageIndex = e.optInt("lastLeafMessageIndex", -1).coerceIn(-1, 7),
+                createdAt = e.optLong("createdAt", System.currentTimeMillis()),
+                updatedAt = e.optLong("updatedAt", System.currentTimeMillis())
+            ))
         }
     }
 

@@ -13,8 +13,8 @@ android {
         applicationId = "id.fajar.zahra"
         minSdk = 24
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.16.0"
+        versionCode = 18
+        versionName = "0.18.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
@@ -65,7 +65,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling:1.12.1")
 
     testImplementation("junit:junit:4.13.2")
-    // android.jar pada unit test hanya berisi stub org.json; implementasi asli diperlukan untuk GameBridgeContractTest.
+    // Implementasi JSON untuk pengujian backup dan payload.
     testImplementation("org.json:json:20240303")
 
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

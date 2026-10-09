@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v0.18.0 — Calm annual growth
+- Added persisted annual levels/EXP/water/cat-food/plant progress with Room migration and backup/restore support.
+- Added difficulty estimation, difficulty-scaled water/EXP/cat food, and growing plant/leaf milestones with clearly labeled private notes.
+- Added race-safe starter mission seeding for obligatory prayers and selected sunnah practices, including Monday/Thursday and alternating-day Daud schedules.
+- Added online hadith collection lookup and categorized dua list with visible source labels and graceful retry state.
+- Added calm Mimi float motion, garden growth/falling leaves, non-looping per-stage progress, subtle card transitions, and a distinct gentle reminder channel.
+- Added progression/heuristic and Puasa Daud unit tests.
+- Full Gradle build remains unverified in this environment; run Android CI or Android Studio before release.
+
+
 ## v0.14.0-fix2
 - Build CI: `compileSdk` 36 -> 37 (core-ktx 1.19.x). Dependensi Godot dicabut seluruhnya (sumber risiko build terbesar); proyek Godot dipindah ke `legacy-godot/`.
 - Game 3D kini three.js di WebView (`GameActivity`, `assets/game/index.html`, `GameJsBridge`): kebun, pasar, restoran, masjid, balai, 6 NPC, misi amal, politik. `three.min.js` diunduh CI sebelum build (lihat android.yml); build lokal: unduh manual ke `app/src/main/assets/game/`.

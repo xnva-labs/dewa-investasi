@@ -1,12 +1,19 @@
-# Zahra v0.15.0 status
+# Zahra v0.18.0 status
 
 ## Fokus rilis
-App-first polish: dashboard Compose lebih terstruktur, indikator progress, akses cepat, empty state, serta metadata versi 0.15.0.
+- Progres/level disimpan terpisah untuk setiap tahun kalender di Room, dan disertakan di backup.
+- Reward misi memberi tetes air bagi tanaman, EXP bagi level tahunan, serta pakan Mimi berdasar estimasi kesulitan.
+- Misi dasar sholat dan rutinitas sunnah/puasa dibuat otomatis dengan pencegahan duplikasi transaksional.
+- Hadis/doa dimuat dari sumber daring pihak ketiga, ditampilkan dengan label sumber.
+- Dashboard dan kartu mendapatkan animasi halus; kebun memiliki fase benih, tumbuh, daun, dan daun jatuh.
 
-## Validasi yang tersedia
-- `python3 tools/audit/audit_all.py`: audit statis source Android.
-- Build APK/unit test: belum dijalankan di lingkungan ini (Gradle dan Android SDK tidak tersedia).
+## Validasi
+- Audit statis: jalankan `python3 tools/audit/audit_all.py`.
+- Unit test Kotlin: `gradle testDebugUnitTest` bila Gradle terpasang.
+- Build APK: `gradle assembleDebug` di Android Studio/CI dengan Android SDK.
+- Build penuh belum dapat dikonfirmasi dari lingkungan pengeditan ini karena Gradle executable/wrapper JAR dan Android SDK tidak tersedia.
 
-## Risiko diketahui
-- `app/src/main/assets/game/index.html` memanggil `three.min.js`, tetapi file dependensi tidak disertakan dalam ZIP sumber. Game WebView membutuhkan library Three.js lokal untuk mode offline; ini tidak menghalangi pengembangan UI aplikasi, tetapi game belum dapat dianggap siap rilis.
-- `docs/STATIC_CHECKS.sh` pada sumber lama merujuk path `app/src/main/assets/scripts/world.gd` yang tidak ada di ZIP fix3 (game pada ZIP ini menggunakan Three.js/HTML).
+## Catatan
+- Estimasi kesulitan adalah heuristik lokal berbasis judul/deskripsi, bukan AI cloud. Data aktivitas tidak dikirim ke layanan analitik.
+- Reward progres adalah gamifikasi, bukan pahala atau pengukuran tingkat keimanan.
+- API sumber agama adalah layanan pihak ketiga: konten memerlukan internet dan sebaiknya diverifikasi untuk kajian mendalam.

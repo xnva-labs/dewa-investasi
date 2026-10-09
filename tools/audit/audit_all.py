@@ -5,11 +5,10 @@ Ini BUKAN pengganti build. Tujuannya menangkap kelas kesalahan yang terbukti lol
 (v0.13.0): DAO tak terdaftar di database, import Compose yang tidak ada, urutan argumen widget Compose,
 inferensi tipe `:=` pada GDScript dari nilai Variant, dan pemanggilan method yang bukan API String Godot.
 """
-import pathlib, re, subprocess, sys
+import pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 KT = ROOT / "app/src/main/java"
-GD = ROOT / "app/src/main/assets/scripts"
 problems = []
 
 def fail(msg): problems.append(msg)
@@ -59,25 +58,6 @@ for p in (ROOT / "app/src/test").rglob("BackupContractTest.kt"):
     m = re.search(r"assertEquals\((\d+),\s*BackupContract\.CURRENT_SCHEMA\)", p.read_text(encoding="utf-8"))
     if m and m.group(1) != schema:
         fail(f"{p.name}: menguji skema {m.group(1)} tetapi CURRENT_SCHEMA={schema}")
-
-# ---------- GDScript ----------
-sys.path.insert(0, str(pathlib.Path(__file__).parent))
-import gd_infer_check
-STRING_ONLY_BAD = [".take(", ".drop(", ".trim(", ".isBlank(", ".isNotBlank(", ".isEmpty(", ".substring(", ".toInt(", ".toFloat(", ".contains_key("]
-for p in GD.rglob("*.gd"):
-    t = p.read_text(encoding="utf-8")
-    rel = p.relative_to(ROOT)
-    for no, name, line, why in gd_infer_check.analyse(str(p)):
-        fail(f"{rel}:{no}: `:=` dari nilai Variant ({', '.join(why)}) -> {line[:90]}")
-    for bad in STRING_ONLY_BAD:
-        for m in re.finditer(re.escape(bad), t):
-            fail(f"{rel}:{t.count(chr(10), 0, m.start()) + 1}: method {bad} bukan API Godot")
-    if re.search(r"^\t", t, re.M) and re.search(r"^ {2,}\S", t, re.M):
-        fail(f"{rel}: indentasi campur tab dan spasi")
-    defined = set(re.findall(r"^\s*func\s+(\w+)", t, re.M))
-    for m in re.finditer(r"^\s*(?:await\s+)?(_[a-z][a-z0-9_]*)\(", t, re.M):
-        if m.group(1) not in defined and m.group(1) not in ("_init", "_ready", "_process"):
-            fail(f"{rel}: fungsi privat {m.group(1)}() dipanggil tetapi tidak didefinisikan")
 
 print("\n".join(f"- {x}" for x in problems) if problems else "Audit statis: tidak ada temuan.")
 sys.exit(1 if problems else 0)

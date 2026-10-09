@@ -19,4 +19,9 @@ class RepeatRulesTest {
         assertEquals(11,out.get(Calendar.DAY_OF_MONTH))
     }
     @Test fun noneDoesNotRepeat(){ assertNull(RepeatRules.next(System.currentTimeMillis(),RepeatRules.NONE)) }
+
+    @Test fun dawudAlternatesEveryTwoDays() {
+        val from = 1_800_000_000_000L
+        assertEquals(from + 2L * 24 * 60 * 60 * 1000, RepeatRules.next(from, RepeatRules.DAWUD))
+    }
 }

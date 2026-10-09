@@ -2,14 +2,16 @@ package id.fajar.zahra.data
 
 import android.content.Context
 import androidx.room.withTransaction
-import id.fajar.zahra.bridge.GameBridge
 import id.fajar.zahra.camera.ProofResult
 import id.fajar.zahra.core.RepeatRules
+import id.fajar.zahra.core.MissionDifficultyEstimator
+import id.fajar.zahra.core.ProgressionRules
 import id.fajar.zahra.core.RewardGuard
 import id.fajar.zahra.reminder.ReminderScheduler
 import id.fajar.zahra.settings.SettingsStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import java.util.Calendar
 
 class AppRepository(
     private val db: ZahraDatabase,
@@ -23,8 +25,101 @@ class AppRepository(
     val pointHistory: Flow<List<PointLedgerEntity>> = db.pointDao().observeRecent()
     val events: Flow<List<AppEventEntity>> = db.eventDao().observeRecent()
     val lists: Flow<List<ListEntity>> = db.listDao().observeLists()
+    val yearlyProgress: Flow<List<YearlyProgressEntity>> = db.yearProgressDao().observeAll()
 
     fun listItems(listId: Long): Flow<List<ListItemEntity>> = db.listItemDao().observeItems(listId)
+
+    /** Seeds a small, editable starter set only once per title; user-authored activities stay untouched. */
+    suspend fun ensureDefaultMissions() {
+        val now = System.currentTimeMillis()
+        val year = Calendar.getInstance().get(Calendar.YEAR)
+        val starters = listOf(
+            StarterMission("Sholat Subuh", "Sholat wajib Subuh.", 2, RepeatRules.DAILY),
+            StarterMission("Sholat Dzuhur", "Sholat wajib Dzuhur.", 2, RepeatRules.DAILY),
+            StarterMission("Sholat Ashar", "Sholat wajib Ashar.", 2, RepeatRules.DAILY),
+            StarterMission("Sholat Maghrib", "Sholat wajib Maghrib.", 2, RepeatRules.DAILY),
+            StarterMission("Sholat Isya", "Sholat wajib Isya.", 2, RepeatRules.DAILY),
+            StarterMission("Sholat Dhuha", "Sunnah pilihan, sesuaikan dengan kemampuan.", 3, RepeatRules.DAILY),
+            StarterMission("Tilawah Al-Qur'an", "Mulai dari target yang terasa ringan.", 2, RepeatRules.DAILY),
+            StarterMission("Dzikir pagi", "Dzikir pagi sebagai pengingat harian.", 2, RepeatRules.DAILY),
+            StarterMission("Dzikir petang", "Dzikir petang sebagai pengingat harian.", 2, RepeatRules.DAILY),
+            StarterMission("Puasa sunnah Senin", "Jadwal puasa sunnah Senin; sesuaikan dengan kondisi diri.", 4, RepeatRules.WEEKLY, Calendar.MONDAY),
+            StarterMission("Puasa sunnah Kamis", "Jadwal puasa sunnah Kamis; sesuaikan dengan kondisi diri.", 4, RepeatRules.WEEKLY, Calendar.THURSDAY),
+            StarterMission("Puasa Daud", "Pola selang-seling; atur ulang tanggal awal bila diperlukan.", 7, RepeatRules.DAWUD)
+        )
+        val created = db.withTransaction {
+            if (db.yearProgressDao().findByYear(year) == null) {
+                db.yearProgressDao().save(YearlyProgressEntity(year = year, createdAt = now, updatedAt = now))
+            }
+            val existingTitles = db.missionDao().getAllForSeeding()
+                .map { it.title.trim().lowercase() }
+                .toMutableSet()
+            val newlyCreated = mutableListOf<Triple<Long, String, Long>>()
+            for (starter in starters) {
+                if (!existingTitles.add(starter.title.trim().lowercase())) continue
+                val scheduledAt = when (starter.weekday) {
+                    null -> now
+                    else -> nextWeekdayAt(starter.weekday, now)
+                }
+                val inferredDifficulty = maxOf(
+                    starter.difficulty,
+                    MissionDifficultyEstimator.estimate(starter.title, starter.description, "Ibadah")
+                )
+                val id = db.missionDao().insert(
+                    MissionEntity(
+                        title = starter.title,
+                        description = starter.description,
+                        category = "Ibadah",
+                        difficulty = inferredDifficulty,
+                        points = ProgressionRules.waterForDifficulty(inferredDifficulty),
+                        scheduleType = "RECURRING",
+                        scheduledAt = scheduledAt,
+                        repeatRule = starter.repeatRule,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                )
+                newlyCreated += Triple(id, starter.title, scheduledAt)
+            }
+            newlyCreated
+        }
+        if (settings.notifications.first()) {
+            created.filter { it.third > now }.forEach { (id, title, scheduledAt) ->
+                ReminderScheduler.scheduleAt(context, id, title, "Pengingat lembut: $title", scheduledAt)
+            }
+        }
+    }
+
+    suspend fun feedCat(): Boolean {
+        val year = Calendar.getInstance().get(Calendar.YEAR)
+        val fed = db.withTransaction {
+            db.yearProgressDao().consumeCatFood(year) > 0
+        }
+        if (fed) db.eventDao().insert(AppEventEntity(type = "CAT_FED", title = "Mimi diberi makan", detail = "Satu pakan dari reward misi dipakai untuk Mimi."))
+        return fed
+    }
+
+    private data class StarterMission(
+        val title: String,
+        val description: String,
+        val difficulty: Int,
+        val repeatRule: String,
+        val weekday: Int? = null
+    )
+
+    private fun nextWeekdayAt(weekday: Int, now: Long): Long {
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = now
+            set(Calendar.HOUR_OF_DAY, 6)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val days = (weekday - calendar.get(Calendar.DAY_OF_WEEK) + 7) % 7
+        if (days > 0) calendar.add(Calendar.DAY_OF_YEAR, days)
+        if (calendar.timeInMillis <= now) calendar.add(Calendar.WEEK_OF_YEAR, 1)
+        return calendar.timeInMillis
+    }
 
     suspend fun saveProfile(name: String, age: Int) {
         val clean = name.trim().take(80)
@@ -47,10 +142,10 @@ class AppRepository(
         if (db.rewardDao().count() == 0) {
             db.rewardDao().insertAll(
                 listOf(
-                    RewardEntity(1, "Tema lembut", "Unlock tema aplikasi", 100),
-                    RewardEntity(2, "Dekorasi taman", "Unlock dekorasi game", 250),
-                    RewardEntity(3, "Furniture spesial", "Unlock furniture game", 500),
-                    RewardEntity(4, "Cosmetic eksklusif", "Unlock cosmetic game", 1000)
+                    RewardEntity(1, "Tema lembut", "Milestone untuk ruang Zahra yang nyaman", 100),
+                    RewardEntity(2, "Momen bersama Mimi", "Pengingat untuk beristirahat sejenak", 250),
+                    RewardEntity(3, "Kartu apresiasi diri", "Catatan untuk menghargai usahamu", 500),
+                    RewardEntity(4, "Lencana konsistensi", "Tanda progres kebiasaan yang terjaga", 1000)
                 )
             )
         }
@@ -72,7 +167,7 @@ class AppRepository(
         require(clean.isNotBlank()) { "Nama misi wajib diisi." }
         val normalizedProof = proofType.uppercase().let { if (it in setOf("NONE", "PHOTO", "POSE", "OBJECT")) it else "NONE" }
         require(normalizedProof != "OBJECT" || proofTarget.trim().isNotBlank()) { "Target objek wajib diisi untuk proof objek." }
-        val rule = repeatRule?.uppercase()?.takeIf { it in setOf(RepeatRules.DAILY, RepeatRules.WEEKLY, RepeatRules.MONTHLY) }
+        val rule = repeatRule?.uppercase()?.takeIf { it in setOf(RepeatRules.DAILY, RepeatRules.WEEKLY, RepeatRules.MONTHLY, RepeatRules.DAWUD) }
         val requestedSchedule = scheduledAt?.coerceAtLeast(System.currentTimeMillis())
         val normalizedSchedule = if (rule != null) requestedSchedule ?: System.currentTimeMillis() else requestedSchedule
         val id = db.missionDao().insert(
@@ -116,7 +211,7 @@ class AppRepository(
         require(cleanTitle.isNotBlank()) { "Nama misi wajib diisi." }
         val normalizedProof = proofType.uppercase().let { if (it in setOf("NONE", "PHOTO", "POSE", "OBJECT")) it else "NONE" }
         require(normalizedProof != "OBJECT" || proofTarget.trim().isNotBlank()) { "Target objek wajib diisi untuk proof objek." }
-        val rule = repeatRule?.uppercase()?.takeIf { it in setOf(RepeatRules.DAILY, RepeatRules.WEEKLY, RepeatRules.MONTHLY) }
+        val rule = repeatRule?.uppercase()?.takeIf { it in setOf(RepeatRules.DAILY, RepeatRules.WEEKLY, RepeatRules.MONTHLY, RepeatRules.DAWUD) }
         val cleanSchedule = scheduledAt?.takeIf { it >= System.currentTimeMillis() }
         val normalizedSchedule = if (rule != null) cleanSchedule ?: System.currentTimeMillis() else cleanSchedule
         val updated = current.copy(
@@ -147,12 +242,11 @@ class AppRepository(
         val now = System.currentTimeMillis()
         var nextReminder: Long? = null
         var completedTitle = ""
-        var completedPoints = 0
         val changed = db.withTransaction {
             val current = db.missionDao().findById(m.id) ?: return@withTransaction false
             if (current.status != "ACTIVE") return@withTransaction false
 
-            val repeating = current.repeatRule in setOf(RepeatRules.DAILY, RepeatRules.WEEKLY, RepeatRules.MONTHLY)
+            val repeating = current.repeatRule in setOf(RepeatRules.DAILY, RepeatRules.WEEKLY, RepeatRules.MONTHLY, RepeatRules.DAWUD)
             if (repeating && !RewardGuard.canCompleteRecurring(current.completedAt, current.scheduledAt, now)) {
                 db.eventDao().insert(
                     AppEventEntity(
@@ -212,15 +306,36 @@ class AppRepository(
             )
             check(pointId > 0L) { "Duplicate mission reward blocked" }
 
+            val year = Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.YEAR)
+            val priorProgress = db.yearProgressDao().findByYear(year) ?: YearlyProgressEntity(year = year, createdAt = now)
+            val waterReward = ProgressionRules.waterForDifficulty(current.difficulty)
+            val newWater = (priorProgress.water + waterReward).coerceAtLeast(0)
+            val newExperience = (priorProgress.experience + ProgressionRules.experienceFor(current.difficulty, waterReward)).coerceAtLeast(0)
+            val newLeafCount = ProgressionRules.leafCount(newWater)
+            val messageIndex = if (newLeafCount > priorProgress.leafDrops) {
+                ProgressionRules.secretMessageIndexForLeaf(newLeafCount, LEAF_MESSAGE_COUNT)
+            } else priorProgress.lastLeafMessageIndex
+            db.yearProgressDao().save(
+                priorProgress.copy(
+                    level = ProgressionRules.levelForExperience(newExperience),
+                    experience = newExperience,
+                    water = newWater,
+                    catFood = (priorProgress.catFood + ProgressionRules.catFoodFor(current.difficulty)).coerceAtMost(999_999),
+                    plantStage = ProgressionRules.plantStage(newWater),
+                    leafDrops = newLeafCount,
+                    lastLeafMessageIndex = messageIndex,
+                    updatedAt = now
+                )
+            )
+
             completedTitle = current.title
-            completedPoints = current.points
             nextReminder = recurring
             db.rewardDao().unlockEligible(db.pointDao().getTotal(), now)
             db.eventDao().insert(
                 AppEventEntity(
                     type = "MISSION_COMPLETED",
                     title = "Misi selesai",
-                    detail = "${current.title} · +${current.points} poin",
+                    detail = "${current.title} · +$waterReward tetes air · +${ProgressionRules.experienceFor(current.difficulty, waterReward)} EXP",
                     createdAt = now
                 )
             )
@@ -229,8 +344,6 @@ class AppRepository(
 
         if (!changed) return false
 
-        // Bridge failure must never roll back a completed mission. The core ledger is local and transactional.
-        GameBridge.enqueueMissionCompleted(context, m.id, completedPoints)
         if (nextReminder != null && settings.notifications.first()) {
             ReminderScheduler.scheduleAt(context, m.id, completedTitle, "Pengingat misi berulang: $completedTitle", nextReminder!!)
         }
@@ -367,9 +480,9 @@ class AppRepository(
             db.listItemDao().deleteAll()
             db.listDao().deleteAll()
             db.eventDao().deleteAll()
+            db.yearProgressDao().deleteAll()
         }
         settings.setNotifications(false)
-        GameBridge.clearQueues(context)
     }
 
     suspend fun archiveMission(m: MissionEntity) {
@@ -377,5 +490,9 @@ class AppRepository(
             ReminderScheduler.cancel(context, m.id)
             db.eventDao().insert(AppEventEntity(type = "MISSION_ARCHIVED", title = "Misi diarsipkan", detail = m.title))
         }
+    }
+
+    companion object {
+        private const val LEAF_MESSAGE_COUNT = 8
     }
 }

@@ -1,1 +1,0 @@
-# Proyek Godot lama\nDipindahkan dari app/src/main/assets pada v0.14.0-fix2. Game aktif sekarang: app/src/main/assets/game (three.js). Workflow godot.yml hanya jalan manual.\n

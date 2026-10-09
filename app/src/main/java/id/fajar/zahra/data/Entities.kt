@@ -99,3 +99,18 @@ data class ListItemEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val checkedAt: Long? = null
 )
+
+/** Persisted annual journey. Each calendar year gets its own level and companion state. */
+@Entity(tableName = "yearly_progress")
+data class YearlyProgressEntity(
+    @PrimaryKey val year: Int,
+    val level: Int = 1,
+    val experience: Int = 0,
+    val water: Int = 0,
+    val catFood: Int = 0,
+    val plantStage: Int = 0,
+    val leafDrops: Int = 0,
+    val lastLeafMessageIndex: Int = -1,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)

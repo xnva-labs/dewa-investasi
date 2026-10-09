@@ -26,6 +26,7 @@ class AppViewModel(private val repo: AppRepository, private val app: Application
     val pointHistory = repo.pointHistory
     val events = repo.events
     val lists = repo.lists
+    val yearlyProgress = repo.yearlyProgress
     fun listItems(listId: Long) = repo.listItems(listId)
     val completedCount = missions
         .map { list -> list.sumOf { it.completionCount } }
@@ -35,7 +36,8 @@ class AppViewModel(private val repo: AppRepository, private val app: Application
         runCatching {
             repo.saveProfile(name, age)
             repo.seedRewards()
-            _actionMessage.value = "Profil tersimpan."
+            repo.ensureDefaultMissions()
+            _actionMessage.value = "Profil tersimpan. Misi ibadah dasar sudah disiapkan."
             onSuccess()
         }.onFailure { _actionMessage.value = it.message ?: "Profil belum dapat disimpan." }
     }
@@ -105,6 +107,17 @@ class AppViewModel(private val repo: AppRepository, private val app: Application
 
     fun seedRewards() = viewModelScope.launch {
         repo.seedRewards()
+    }
+
+    fun ensureDefaultMissions() = viewModelScope.launch {
+        runCatching { repo.ensureDefaultMissions() }
+            .onFailure { _actionMessage.value = it.message ?: "Misi awal belum dapat disiapkan." }
+    }
+
+    fun feedCat() = viewModelScope.launch {
+        runCatching { repo.feedCat() }
+            .onSuccess { fed -> _actionMessage.value = if (fed) "Mimi senang ditemani. 🐈" else "Belum ada pakan. Selesaikan satu misi untuk mendapatkannya." }
+            .onFailure { _actionMessage.value = it.message ?: "Mimi belum bisa diberi makan." }
     }
 
     fun refreshReminders() = viewModelScope.launch {

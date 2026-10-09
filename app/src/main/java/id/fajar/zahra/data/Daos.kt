@@ -30,6 +30,9 @@ interface MissionDao {
     @Query("SELECT * FROM missions WHERE status!='ARCHIVED' ORDER BY createdAt DESC")
     suspend fun getAllNonArchived(): List<MissionEntity>
 
+    @Query("SELECT * FROM missions")
+    suspend fun getAllForSeeding(): List<MissionEntity>
+
     @Insert
     suspend fun insert(m: MissionEntity): Long
 
@@ -203,5 +206,23 @@ interface ListItemDao {
     suspend fun deleteForList(listId: Long)
 
     @Query("DELETE FROM list_items")
+    suspend fun deleteAll()
+}
+
+@Dao
+interface YearProgressDao {
+    @Query("SELECT * FROM yearly_progress ORDER BY year DESC")
+    fun observeAll(): Flow<List<YearlyProgressEntity>>
+
+    @Query("SELECT * FROM yearly_progress WHERE year=:year LIMIT 1")
+    suspend fun findByYear(year: Int): YearlyProgressEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun save(progress: YearlyProgressEntity)
+
+    @Query("UPDATE yearly_progress SET catFood=catFood-1, updatedAt=:time WHERE year=:year AND catFood>0")
+    suspend fun consumeCatFood(year: Int, time: Long = System.currentTimeMillis()): Int
+
+    @Query("DELETE FROM yearly_progress")
     suspend fun deleteAll()
 }

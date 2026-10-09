@@ -15,8 +15,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Unduh three.js (dibundel offline ke APK)
-        run: curl -fsSL -o app/src/main/assets/game/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.4.1"
