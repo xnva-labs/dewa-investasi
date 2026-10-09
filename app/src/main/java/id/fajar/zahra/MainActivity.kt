@@ -12,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -36,7 +37,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.animateContentSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -95,6 +95,8 @@ import id.fajar.zahra.data.ZahraDatabase
 import id.fajar.zahra.data.YearlyProgressEntity
 import id.fajar.zahra.settings.SettingsStore
 import id.fajar.zahra.islamic.IslamicContentRepository
+import id.fajar.zahra.prayer.PrayerTimesScreen
+import id.fajar.zahra.menstruation.MenstruationScreen
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -209,7 +211,8 @@ fun ZahraApp(
         }
         composable("rewards") { Rewards(vm) }
         composable("islamic-content") { IslamicContentScreen() }
-        composable("prayer-times") { id.fajar.zahra.prayer.PrayerTimesScreen() }
+        composable("prayer-times") { PrayerTimesScreen() }
+        composable("menstruation") { MenstruationScreen() }
         composable("stats") { Stats(vm) }
         composable("history") { History(vm) }
         composable("calendar") { CalendarScreen(vm) }
@@ -428,6 +431,9 @@ fun Dashboard(name: String, vm: AppViewModel, go: (String) -> Unit) {
                     OutlinedButton(onClick = { go("lists") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("☷  Checklist") }
                     OutlinedButton(onClick = { go("rewards") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("◇  Reward") }
                 }
+            }
+            item {
+                OutlinedButton(onClick = { go("menstruation") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text("♡  Kalender haid pribadi") }
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

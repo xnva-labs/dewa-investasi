@@ -104,7 +104,7 @@ fun PrayerTimesScreen() {
                             if (!fastingReminders) listOf("Alarm sahur", "Waktunya berbuka").forEach { cancel(context, "cirebon-$it".hashCode()) }
                             fun addReminder(name: String, time: String, original: Long, body: String, leadMinutes: Int = 0) {
                                 val alarmTime = original - leadMinutes * 60_000L
-                                val adjustedTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(alarmTime))
+                                val adjustedTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).apply { timeZone = java.util.TimeZone.getTimeZone("Asia/Jakarta") }.format(java.util.Date(alarmTime))
                                 val at = if (alarmTime > System.currentTimeMillis()) alarmTime else alarmTime + 24L * 60L * 60L * 1000L
                                 schedule(context, ("cirebon-$name".hashCode()), name, body, adjustedTime, at); count++
                             }

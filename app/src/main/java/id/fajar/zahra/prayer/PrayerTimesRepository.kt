@@ -8,6 +8,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 /** Jadwal harian Cirebon dari API AlAdhan; jam mengikuti zona waktu perangkat. */
 object PrayerTimesRepository {
@@ -22,10 +23,11 @@ object PrayerTimesRepository {
             val root = JSONObject(connection.inputStream.bufferedReader().use { it.readText() }).getJSONObject("data")
             val timings = root.getJSONObject("timings")
             val dateLabel = root.getJSONObject("date").getString("readable")
-            val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val jakarta = TimeZone.getTimeZone("Asia/Jakarta")
+            val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = jakarta }.format(Date())
             fun time(key: String, label: String): PrayerTime {
                 val hhmm = timings.getString(key).take(5)
-                val millis = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).parse("$day $hhmm")?.time ?: System.currentTimeMillis()
+                val millis = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).apply { timeZone = jakarta }.parse("$day $hhmm")?.time ?: System.currentTimeMillis()
                 return PrayerTime(label, hhmm, millis)
             }
             val fajr = time("Fajr", "Subuh")

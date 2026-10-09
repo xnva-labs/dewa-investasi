@@ -99,3 +99,11 @@ Infrastruktur
 - Added opt-in WorkManager notifications for the five daily prayers and optional sahur (30 minutes before imsak) and Maghrib/iftar. Reminders repeat daily and use the app's calm notification channel.
 - Added notification permission request flow, cancellation of reminders when switched off, and dashboard shortcuts.
 - Reminder delivery is battery-aware/inexact; users should cross-check local mosque times.
+
+## v0.18.2
+- Fix Compose `animateContentSize` import to `androidx.compose.animation.animateContentSize`.
+- Replace fully qualified prayer screen call inside Navigation Compose DSL with an explicit import to avoid `id.fajar` receiver shadowing.
+- Add optional private cycle calendar. All fields are empty for first-time use, saved locally with Preferences DataStore, and can schedule a generic one-shot notification about three days before the estimated next period; after delivery it schedules one reminder for the next estimated cycle, not daily repeats.
+- Add calm launcher icon centered on the letter Z.
+- Make Cirebon prayer-time epoch parsing and daily reminder rescheduling explicitly use Asia/Jakarta, independent of device timezone settings.
+- Raise Android versionCode to 20 and versionName to 0.18.2.

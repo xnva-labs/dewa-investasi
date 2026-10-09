@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import id.fajar.zahra.MainActivity
 import id.fajar.zahra.Notifications
 import java.util.Calendar
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
 /** WorkManager reminders are battery-aware and may be delivered a little after the target time. */
@@ -35,7 +36,7 @@ class PrayerAlarmWorker(context: Context, params: WorkerParameters) : CoroutineW
         if (!hhmm.isNullOrBlank()) {
             val parts = hhmm.split(":")
             if (parts.size == 2) {
-                val next = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1); set(Calendar.HOUR_OF_DAY, parts[0].toInt()); set(Calendar.MINUTE, parts[1].toInt()); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+                val next = Calendar.getInstance(TimeZone.getTimeZone("Asia/Jakarta")).apply { add(Calendar.DAY_OF_YEAR, 1); set(Calendar.HOUR_OF_DAY, parts[0].toInt()); set(Calendar.MINUTE, parts[1].toInt()); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
                 schedule(applicationContext, id, title, body, hhmm, next)
             }
         }
