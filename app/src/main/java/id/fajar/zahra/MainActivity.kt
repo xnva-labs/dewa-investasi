@@ -209,6 +209,7 @@ fun ZahraApp(
         }
         composable("rewards") { Rewards(vm) }
         composable("islamic-content") { IslamicContentScreen() }
+        composable("prayer-times") { id.fajar.zahra.prayer.PrayerTimesScreen() }
         composable("stats") { Stats(vm) }
         composable("history") { History(vm) }
         composable("calendar") { CalendarScreen(vm) }
@@ -413,7 +414,13 @@ fun Dashboard(name: String, vm: AppViewModel, go: (String) -> Unit) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = { go("islamic-content") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("☾  Hadis & Doa") }
+                    OutlinedButton(onClick = { go("prayer-times") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("☼  Waktu Sholat") }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(onClick = { go("calendar") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("▦  Kalender") }
+                    OutlinedButton(onClick = { go("lists") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) { Text("☑  Daftar harian") }
                 }
             }
             item {

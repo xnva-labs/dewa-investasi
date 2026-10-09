@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package id.fajar.zahra
 
 import androidx.compose.foundation.horizontalScroll

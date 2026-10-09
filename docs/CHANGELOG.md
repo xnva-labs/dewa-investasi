@@ -92,3 +92,10 @@ Infrastruktur
 - HUD/tutorial lebih bersih; interaksi NPC acak dikurangi.
 - Batas render ponsel disetel lebih konservatif.
 - Pemuatan Three.js memakai dua CDN dan pesan fallback yang jelas; offline bundling masih belum terpenuhi.
+
+## v0.18.1 — prayer reminders and CI compile fix
+- Added file-level Material 3 experimental API opt-in to screens using Material 3 experimental components, fixing the compiler diagnostic for `CenterAlignedTopAppBar`.
+- Added a Cirebon prayer timetable screen backed by AlAdhan city timings and a visible calculation-method/source caveat.
+- Added opt-in WorkManager notifications for the five daily prayers and optional sahur (30 minutes before imsak) and Maghrib/iftar. Reminders repeat daily and use the app's calm notification channel.
+- Added notification permission request flow, cancellation of reminders when switched off, and dashboard shortcuts.
+- Reminder delivery is battery-aware/inexact; users should cross-check local mosque times.
