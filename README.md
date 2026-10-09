@@ -1,4 +1,4 @@
-# Zahra v0.18.5 — Calm Islamic companion & yearly growth
+# Zahra v0.18.6 — Calm Islamic companion & yearly growth
 
 Aplikasi Android untuk ibadah dan aktivitas harian, misi otomatis, konten hadis/doa daring, level tahunan tersimpan, kebun benih yang tumbuh dari reward, serta teman virtual Mimi. Visual memakai warna sage, teal, lavender, dan putih hangat; tidak ada estetika cyberpunk.
 
@@ -76,15 +76,18 @@ Lalu buka tab **Actions** dan jalankan workflow **Android CI** untuk membuat APK
 Folder ini adalah **root repository**. Upload/commit isi ZIP ini langsung ke root repo (jangan bungkus lagi dengan folder `src/`). Buka folder proyek ini di Android Studio atau jalankan workflow **Android CI** dari tab **Actions**.
 
 
-## Arah produk v0.18.5
+## Arah produk v0.18.6
 
 - Tidak ada game terpisah: beranda memadukan Mimi, kebun kecil, level tahunan, aktivitas dan akses cepat ibadah.
 - Tetes air, EXP, pakan dan poin adalah gamifikasi aplikasi, bukan ukuran pahala, kualitas iman, atau hukum ibadah.
 - Estimasi kesulitan adalah heuristik lokal yang bisa meleset, bukan model AI yang memahami konteks atau penilaian agama.
 - Hadis dan doa diambil dari API pihak ketiga saat layar dibuka; verifikasi rujukan dan penjelasan tetap diperlukan. Konten daring tidak dijamin tersedia offline.
-- Build APK dan tes JUnit harus dijalankan di Android Studio/CI karena Gradle executable dan Android SDK tidak tersedia di lingkungan pengeditan ini. Lihat `docs/QA_REPORT_V0.18.4.md` untuk hasil audit source terbaru.
+- Build APK dan tes JUnit harus dijalankan di Android Studio/CI karena Gradle executable dan Android SDK tidak tersedia di lingkungan pengeditan ini. Lihat `docs/QA_REPORT_V0.18.6.md` untuk hasil audit navigasi terbaru.
 
 
-## Revisi v0.18.5
+## Revisi v0.18.6
+- Navigasi bawah mengikuti route aktif dan tampil konsisten di Beranda, Misi, Progres, serta Profil.
+- Layar sambutan dan layar detail tidak menampilkan tab utama.
+
 - Pengingat sholat dan puasa kini mengambil jadwal untuk hari berikutnya dari AlAdhan setelah notifikasi berjalan, dengan fallback jam lokal ketika jaringan gagal. WorkManager tetap dapat terlambat sesuai kebijakan baterai Android.
 - Catatan kalender haid dienkripsi saat disimpan menggunakan AES-GCM dan kunci Android Keystore. Data plaintext versi lama dibaca untuk kompatibilitas lalu dienkripsi saat disimpan ulang.

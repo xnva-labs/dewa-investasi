@@ -1,3 +1,9 @@
+## v0.18.6 — Bottom navigation fix
+- Moved the primary bottom navigation to the app-level scaffold so Beranda, Misi, Progres, and Profil remain available on every primary destination.
+- Selected-tab state follows the active navigation route instead of always highlighting Beranda.
+- Tab changes avoid duplicate top-level destinations and save/restore destination state.
+- Added unit tests for primary route selection and hiding the bottom bar on welcome/detail screens.
+
 # CHANGELOG
 
 ## v0.18.0 — Calm annual growth

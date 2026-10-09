@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,7 @@ private val android.content.Context.personalNoteStore by preferencesDataStore(na
 private val personalNoteKey = stringPreferencesKey("note_text")
 
 /** Optional, locally stored personal note. This is deliberately not presented as Islamic scripture. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonalNoteScreen() {
     val context = LocalContext.current

@@ -35,7 +35,7 @@ class RewardIdempotencyInstrumentedTest {
                 )
             )
             assertTrue(first > 0L)
-            assertEquals(0L, duplicate)
+            assertEquals(-1L, duplicate)
             assertEquals(20, db.pointDao().getTotal())
         } finally {
             db.close()

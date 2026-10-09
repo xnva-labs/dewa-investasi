@@ -110,6 +110,11 @@ for p in sorted((ROOT / "app/src").rglob("*.kt")):
         if re.search(r"\b(?:class|object|interface)\s+" + name + r"\b", body):
             continue
         fail(f"{p.relative_to(ROOT)}: memakai {name} tanpa `import {package}.{name}`")
+    # API TopAppBar Material3 masih @ExperimentalMaterial3Api; tanpa opt-in kompilator gagal dengan OPT_IN_USAGE_ERROR
+    # (v0.18.5: PersonalNoteScreen memakai CenterAlignedTopAppBar tanpa opt-in).
+    experimental = re.search(r"(?<![\w.])(CenterAlignedTopAppBar|TopAppBar|MediumTopAppBar|LargeTopAppBar)\s*\(", body)
+    if experimental and not re.search(r"@(?:file:)?OptIn\([^)]*ExperimentalMaterial3Api", body):
+        fail(f"{p.relative_to(ROOT)}: memakai {experimental.group(1)} tanpa @OptIn(ExperimentalMaterial3Api::class)")
 
 print("\n".join(f"- {x}" for x in problems) if problems else "Audit statis: tidak ada temuan.")
 sys.exit(1 if problems else 0)

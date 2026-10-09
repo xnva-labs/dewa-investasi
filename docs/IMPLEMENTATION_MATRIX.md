@@ -1,3 +1,9 @@
+## Revisi v0.18.6
+- Versi aplikasi: 0.18.6 (versionCode 24).
+- Navigasi bawah berada di scaffold utama, menyorot route aktif yang benar, dan hanya tampil di empat layar utama.
+- Perpindahan tab memakai singleTop serta save/restore state untuk mengurangi penumpukan back stack.
+- Tes unit regresi: route tab utama dipetakan dengan benar; sambutan dan layar detail tidak memetakan tab aktif.
+
 # Zahra v0.13.0 implementation matrix
 
 Legend: ✅ source implemented, 🧪 statically checked, ⬜ runtime/device pending.

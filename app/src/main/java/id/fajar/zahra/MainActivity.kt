@@ -81,6 +81,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import id.fajar.zahra.backup.BackupRepository
 import id.fajar.zahra.backup.PortableBackupCrypto
@@ -176,6 +177,8 @@ fun ZahraApp(
 ) {
     val profile by vm.profile.collectAsState(initial = null)
     val nav = rememberNavController()
+    val backStackEntry by nav.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
     // Tujuan awal ditentukan sekali dari database supaya pengguna lama tidak melihat layar sambutan sekilas.
     val startDestination by produceState<String?>(initialValue = null) {
         value = if (vm.profile.first() == null) "welcome" else "dashboard"
@@ -190,65 +193,114 @@ fun ZahraApp(
     }
 
     val start = startDestination ?: return
-    NavHost(navController = nav, startDestination = start) {
-        composable("welcome") {
-            Welcome { name, age ->
-                vm.saveProfile(name, age) {
-                    nav.navigate("dashboard") {
-                        popUpTo("welcome") { inclusive = true }
+    Scaffold(
+        bottomBar = {
+            if (bottomNavSelectedRoute(currentRoute) != null) {
+                NavigationBar {
+                    listOf(
+                        "dashboard" to "Beranda",
+                        "missions" to "Misi",
+                        "stats" to "Progres",
+                        "profile" to "Profil"
+                    ).forEach { (route, label) ->
+                        val selected = currentRoute == route
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                if (!selected) {
+                                    nav.navigate(route) {
+                                        launchSingleTop = true
+                                        restoreState = true
+                                        // Pertahankan satu entry akar agar tab tidak menumpuk di back stack.
+                                        popUpTo("dashboard") { saveState = true }
+                                    }
+                                }
+                            },
+                            icon = {
+                                Text(when (route) {
+                                    "dashboard" -> "⌂"
+                                    "missions" -> "✓"
+                                    "stats" -> "↗"
+                                    else -> "○"
+                                })
+                            },
+                            label = { Text(label) }
+                        )
                     }
                 }
             }
         }
-        composable("dashboard") {
-            Dashboard(profile?.name.orEmpty(), vm) { nav.navigate(it) }
-        }
-        composable("missions") {
-            Missions(vm) { route -> nav.navigate(route) }
-        }
-        composable("edit/{missionId}") { entry ->
-            val missionId = entry.arguments?.getString("missionId")?.toLongOrNull() ?: 0L
-            val mission = vm.missions.collectAsState(emptyList()).value.firstOrNull { it.id == missionId }
-            if (mission != null) MissionEditScreen(mission, vm) { nav.popBackStack() }
-        }
-        composable("lists") {
-            ListsScreen(vm) { listId -> nav.navigate("list/$listId") }
-        }
-        composable("list/{listId}") { entry ->
-            val listId = entry.arguments?.getString("listId")?.toLongOrNull() ?: 0L
-            val list = vm.lists.collectAsState(emptyList()).value.firstOrNull { it.id == listId }
-            if (list != null) ListDetailScreen(list, vm) { nav.popBackStack() }
-        }
-        composable("rewards") { Rewards(vm) }
-        composable("islamic-content") { IslamicContentScreen() }
-        composable("prayer-times") { PrayerTimesScreen() }
-        composable("menstruation") { MenstruationScreen() }
-        composable("personal-note") { PersonalNoteScreen() }
-        composable("stats") { Stats(vm) }
-        composable("history") { History(vm) }
-        composable("calendar") { CalendarScreen(vm) }
-        composable("profile") {
-            ProfileScreen(profile = profile, vm = vm)
-        }
-        composable("camera") {
-            CameraProofScreen(onRecorded = { result ->
-                if (result.missionId > 0L) vm.recordProof(result)
-            })
-        }
-        composable("camera/{missionId}/{proofType}/{proofTarget}") { entry ->
-            val missionId = entry.arguments?.getString("missionId")?.toLongOrNull() ?: 0L
-            val proofType = entry.arguments?.getString("proofType") ?: "PHOTO"
-            val target = Uri.decode(entry.arguments?.getString("proofTarget").orEmpty())
-            CameraProofScreen(missionId, proofType, target) { result -> vm.recordProof(result) }
-        }
-        composable("settings") {
-            SettingsScreen(vm, db, settings) {
-                nav.navigate("welcome") {
-                    popUpTo("settings") { inclusive = true }
+    ) { contentPadding ->
+        NavHost(
+            navController = nav,
+            startDestination = start,
+            modifier = Modifier.padding(contentPadding)
+        ) {
+            composable("welcome") {
+                Welcome { name, age ->
+                    vm.saveProfile(name, age) {
+                        nav.navigate("dashboard") {
+                            popUpTo("welcome") { inclusive = true }
+                        }
+                    }
+                }
+            }
+            composable("dashboard") {
+                Dashboard(profile?.name.orEmpty(), vm) { nav.navigate(it) }
+            }
+            composable("missions") {
+                Missions(vm) { route -> nav.navigate(route) }
+            }
+            composable("edit/{missionId}") { entry ->
+                val missionId = entry.arguments?.getString("missionId")?.toLongOrNull() ?: 0L
+                val mission = vm.missions.collectAsState(emptyList()).value.firstOrNull { it.id == missionId }
+                if (mission != null) MissionEditScreen(mission, vm) { nav.popBackStack() }
+            }
+            composable("lists") {
+                ListsScreen(vm) { listId -> nav.navigate("list/$listId") }
+            }
+            composable("list/{listId}") { entry ->
+                val listId = entry.arguments?.getString("listId")?.toLongOrNull() ?: 0L
+                val list = vm.lists.collectAsState(emptyList()).value.firstOrNull { it.id == listId }
+                if (list != null) ListDetailScreen(list, vm) { nav.popBackStack() }
+            }
+            composable("rewards") { Rewards(vm) }
+            composable("islamic-content") { IslamicContentScreen() }
+            composable("prayer-times") { PrayerTimesScreen() }
+            composable("menstruation") { MenstruationScreen() }
+            composable("personal-note") { PersonalNoteScreen() }
+            composable("stats") { Stats(vm) }
+            composable("history") { History(vm) }
+            composable("calendar") { CalendarScreen(vm) }
+            composable("profile") {
+                ProfileScreen(profile = profile, vm = vm)
+            }
+            composable("camera") {
+                CameraProofScreen(onRecorded = { result ->
+                    if (result.missionId > 0L) vm.recordProof(result)
+                })
+            }
+            composable("camera/{missionId}/{proofType}/{proofTarget}") { entry ->
+                val missionId = entry.arguments?.getString("missionId")?.toLongOrNull() ?: 0L
+                val proofType = entry.arguments?.getString("proofType") ?: "PHOTO"
+                val target = Uri.decode(entry.arguments?.getString("proofTarget").orEmpty())
+                CameraProofScreen(missionId, proofType, target) { result -> vm.recordProof(result) }
+            }
+            composable("settings") {
+                SettingsScreen(vm, db, settings) {
+                    nav.navigate("welcome") {
+                        popUpTo("settings") { inclusive = true }
+                    }
                 }
             }
         }
     }
+}
+
+/** Mengembalikan route tab utama yang dipilih; layar detail tidak menyorot tab utama. */
+internal fun bottomNavSelectedRoute(route: String?): String? = when (route) {
+    "dashboard", "missions", "stats", "profile" -> route
+    else -> null
 }
 
 @Composable
@@ -350,20 +402,7 @@ fun Dashboard(name: String, vm: AppViewModel, go: (String) -> Unit) {
     val completedToday = missions.count { (it.completedAt ?: 0L) >= todayStart }
     val progress = if (missions.isEmpty()) 0f else (completedToday.toFloat() / (completedToday + active.size).coerceAtLeast(1)).coerceIn(0f, 1f)
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                listOf("dashboard" to "Beranda", "missions" to "Misi", "stats" to "Progres", "profile" to "Profil").forEach { (route, label) ->
-                    NavigationBarItem(
-                        selected = route == "dashboard",
-                        onClick = { if (route != "dashboard") go(route) },
-                        icon = { Text(when (route) { "dashboard" -> "⌂"; "missions" -> "✓"; "stats" -> "↗"; else -> "○" }) },
-                        label = { Text(label) }
-                    )
-                }
-            }
-        }
-    ) { padding ->
+    Scaffold { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 18.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)

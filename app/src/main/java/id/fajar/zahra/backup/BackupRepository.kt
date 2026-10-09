@@ -125,7 +125,7 @@ class BackupRepository(private val db: ZahraDatabase) {
             ProfileEntity(
                 id = 1,
                 name = p.optString("name").trim().take(80),
-                age = p.optInt("age", 1).coerceIn(1, 120),
+                age = p.optInt("age", 0).coerceIn(0, 120),
                 createdAt = p.optLong("createdAt", System.currentTimeMillis()),
                 updatedAt = p.optLong("updatedAt", System.currentTimeMillis())
             )
@@ -167,7 +167,7 @@ class BackupRepository(private val db: ZahraDatabase) {
     private fun validateBackup(root: JSONObject) {
         root.optJSONObject("profile")?.let {
             require(it.optString("name").trim().isNotBlank()) { "Profil backup tidak valid" }
-            require(it.optInt("age", 0) in 1..120) { "Usia profil backup tidak valid" }
+            require(it.optInt("age", 0) in 0..120) { "Usia profil backup tidak valid" }
         }
 
         val missions = root.optJSONArray("missions") ?: JSONArray()
