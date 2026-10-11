@@ -1,1 +1,0 @@
-<resources><style name="Theme.Zahra" parent="android:style/Theme.Material.Light.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:windowLightStatusBar">true</item><item name="android:statusBarColor">#FFFFFAFC</item><item name="android:navigationBarColor">#FFFFFAFC</item></style></resources>
